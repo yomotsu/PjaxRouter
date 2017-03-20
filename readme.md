@@ -8,3 +8,7 @@ Pjax Router for static websites.
 ## demos
 
 - [basic](https://yomotsu.github.io/PjaxRouter/examples/index.html)
+
+## supported
+
+IE10+ and others.
