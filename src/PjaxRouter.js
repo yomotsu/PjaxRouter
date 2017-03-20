@@ -4,6 +4,8 @@ class PjaxRouter {
 
 	constructor ( option = {} ) {
 
+		if ( ! PjaxRouter.supported ) { return; }
+
 		this.lastStartTime = -1;
 		// this.loading = false;
 		this.url = location.href;
@@ -15,7 +17,13 @@ class PjaxRouter {
 		this._onLinkClick = onLinkClick.bind( this );
 		this._onPopstate = onPopstate.bind( this );
 
-		window.history.replaceState( { url: window.location.href }, document.title );
+		window.history.replaceState(
+			{
+				url: window.location.href,
+				scrollTop: document.body.scrollTop || document.documentElement.scrollTop
+			},
+			document.title
+		);
 		document.body.addEventListener( 'click', this._onLinkClick );
 		window.addEventListener( 'popstate', this._onPopstate );
 
@@ -34,7 +42,11 @@ class PjaxRouter {
 			const oldEl = document.querySelector( selector );
 			const newEl = tmpDocument.querySelector( selector );
 
-			this.switches[ selector ]( oldEl, newEl );
+			if ( typeof this.switches[ selector ] === 'function' ) {
+
+				this.switches[ selector ]( oldEl, newEl );
+
+			}
 
 		} );
 
@@ -67,7 +79,8 @@ class PjaxRouter {
 
 				const title = tmpDocument.querySelector( 'title' ).textContent;
 				const state = {
-					url: this.url
+					url: this.url,
+					scrollTop: document.body.scrollTop || document.documentElement.scrollTop
 				};
 				history.pushState( state, title, this.url );
 
@@ -133,6 +146,8 @@ class PjaxRouter {
 	}
 
 }
+
+PjaxRouter.supported = ( window.history && window.history.pushState );
 
 const origin = new RegExp( location.origin );
 
