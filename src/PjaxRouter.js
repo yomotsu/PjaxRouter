@@ -1,4 +1,5 @@
 import load from './load.js';
+import elementMatches from './elementMatches.js';
 
 class PjaxRouter {
 
@@ -154,7 +155,7 @@ const origin = new RegExp( location.origin );
 function onLinkClick ( event ) {
 
 	const triggerEl = event.target;
-	const isMatched = this.triggers.some( ( selector ) => triggerEl.matches( selector ) );
+	const isMatched = this.triggers.some( ( selector ) => elementMatches( triggerEl, selector ) );
 
 	if ( ! isMatched ) { return; }
 
