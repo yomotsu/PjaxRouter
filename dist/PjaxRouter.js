@@ -36,6 +36,14 @@
 		xhr.send(null);
 	};
 
+	// https://developer.mozilla.org/ja/docs/Web/API/Element/matches#Polyfill
+	var matches = Element.prototype.matches || Element.prototype.matchesSelector || Element.prototype.mozMatchesSelector || Element.prototype.msMatchesSelector || Element.prototype.oMatchesSelector || Element.prototype.webkitMatchesSelector;
+
+	function elementMatches(el, selector) {
+
+		return matches.call(el, selector);
+	}
+
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var PjaxRouter = function () {
@@ -182,7 +190,7 @@
 
 		var triggerEl = event.target;
 		var isMatched = this.triggers.some(function (selector) {
-			return triggerEl.matches(selector);
+			return elementMatches(triggerEl, selector);
 		});
 
 		if (!isMatched) {
