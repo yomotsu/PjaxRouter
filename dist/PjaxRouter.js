@@ -12,11 +12,11 @@
 
 	var tmpDocument = document.createElement('html');
 	var xhr = new XMLHttpRequest();
-	xhr.timeout = 2000;
 
 	var load = function load(url, callback) {
 
 		xhr.open('GET', url, true);
+		xhr.timeout = 5000;
 		xhr.onload = function () {
 
 			tmpDocument.innerHTML = xhr.responseText.replace(/^(.+)?<html(.+)?>/gi, '');
@@ -44,6 +44,10 @@
 
 			_classCallCheck(this, PjaxRouter);
 
+			if (!PjaxRouter.supported) {
+				return;
+			}
+
 			this.lastStartTime = -1;
 			// this.loading = false;
 			this.url = location.href;
@@ -55,7 +59,10 @@
 			this._onLinkClick = onLinkClick.bind(this);
 			this._onPopstate = onPopstate.bind(this);
 
-			window.history.replaceState({ url: window.location.href }, document.title);
+			window.history.replaceState({
+				url: window.location.href,
+				scrollTop: document.body.scrollTop || document.documentElement.scrollTop
+			}, document.title);
 			document.body.addEventListener('click', this._onLinkClick);
 			window.addEventListener('popstate', this._onPopstate);
 		}
@@ -76,7 +83,10 @@
 				var oldEl = document.querySelector(selector);
 				var newEl = tmpDocument.querySelector(selector);
 
-				_this.switches[selector](oldEl, newEl);
+				if (typeof _this.switches[selector] === 'function') {
+
+					_this.switches[selector](oldEl, newEl);
+				}
 			});
 
 			this.dispatch({ type: 'afterswitch' });
@@ -107,7 +117,8 @@
 
 					var title = tmpDocument.querySelector('title').textContent;
 					var state = {
-						url: _this2.url
+						url: _this2.url,
+						scrollTop: document.body.scrollTop || document.documentElement.scrollTop
 					};
 					history.pushState(state, title, _this2.url);
 				}
@@ -162,6 +173,8 @@
 
 		return PjaxRouter;
 	}();
+
+	PjaxRouter.supported = window.history && window.history.pushState;
 
 	var origin = new RegExp(location.origin);
 
