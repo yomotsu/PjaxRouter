@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>demo index</title>
+</head>
+<body>
+<p><a href="https://github.com/yomotsu/PjaxRouter">GitHub repo</a></p>
+
+<a href="index.html">index</a>
+<a href="2.html">2.html</a>
+
+<div class="sandbox1">
+	sandbox1 index.html
+</div>
+
+<div class="sandbox2">
+	sandbox2 index.html
+</div>
+
+<h2>Example code</h2>
+<pre>var router = new PjaxRouter( {
+	triggers: [ 'a' ],
+	selectors: [ 'title', '.sandbox1', '.sandbox2' ],
+	switches: {
+		'title': function ( oldEl, newEl ) {
+
+			document.title.innerHTML = newEl.innerHTML;
+
+		},
+		'.sandbox1': function ( oldEl, newEl ) {
+
+			document.querySelector('.sandbox1').innerHTML = newEl.innerHTML;
+
+		},
+		'.sandbox2': function ( oldEl, newEl ) {
+
+			document.querySelector('.sandbox2').innerHTML = newEl.innerHTML;
+
+		}
+	}
+} );</pre>
+
+<script src="../dist/PjaxRouter.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

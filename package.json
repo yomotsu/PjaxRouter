@@ -1,0 +1,27 @@
+{
+  "name": "pjax-router",
+  "version": "0.0.0",
+  "author": "Yomotsu",
+  "license": "MIT",
+  "main": "dist/PjaxRouter.js",
+  "repository": "yomotsu/PjaxRouter",
+  "jsnext:main": "dist/PjaxRouter.module.js",
+  "module": "dist/PjaxRouter.module.js",
+  "devDependencies": {
+    "babel-preset-env": "1.2.2",
+    "rollup": "^0.41.4",
+    "rollup-plugin-babel": "2.7.1",
+    "rollup-watch": "^3.2.2",
+    "uglify-js": "^2.6.0"
+  },
+  "scripts": {
+    "start": "npm run watch",
+    "watch": "rollup --config --watch",
+    "build": "rollup --config",
+    "release": "rollup --config && uglifyjs dist/PjaxRouter.js -cm --preamble \"/*!\n * PjaxRouter\n * https://github.com/yomotsu/PjaxRouter\n * (c) 2017 @yomotsu\n * Released under the MIT License.\n */\" > dist/PjaxRouter.min.js"
+  },
+  "engines": {
+    "node": "6.9.4",
+    "npm": "3.10.10"
+  }
+}
