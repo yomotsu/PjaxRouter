@@ -4,7 +4,7 @@ var router = new PjaxRouter( {
 	switches: {
 		'title': function ( oldEl, newEl ) {
 
-			document.title.innerHTML = newEl.innerHTML;
+			document.title = newEl.innerHTML;
 
 		},
 		'.sandbox1': function ( oldEl, newEl ) {
@@ -19,3 +19,9 @@ var router = new PjaxRouter( {
 		}
 	}
 } );
+
+router.on( 'beforeload',   function () { console.log( 'beforeload' );   } );
+router.on( 'load',         function () { console.log( 'load' );         } );
+router.on( 'beforeswitch', function () { console.log( 'beforeswitch' ); } );
+router.on( 'afterswitch',  function () { console.log( 'afterswitch' );  } );
+router.on( 'error',        function () { console.log( 'error' );        } );
