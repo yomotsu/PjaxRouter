@@ -60,6 +60,7 @@
 			// this.loading = false;
 			this.url = location.href;
 			this.triggers = option.triggers;
+			this.ignores = option.ignores || [];
 			this.selectors = option.selectors;
 			this.switches = option.switches;
 
@@ -93,7 +94,7 @@
 
 				if (typeof _this.switches[selector] === 'function') {
 
-					_this.switches[selector](oldEl, newEl);
+					_this.switches[selector](newEl, oldEl);
 				}
 			});
 
@@ -192,14 +193,12 @@
 		var isMatched = this.triggers.some(function (selector) {
 			return elementMatches(triggerEl, selector);
 		});
-
-		if (!isMatched) {
-			return;
-		}
-
+		var isIgnored = this.ignores.some(function (selector) {
+			return elementMatches(triggerEl, selector);
+		});
 		var isExternalLink = !origin.test(triggerEl.href);
 
-		if (isExternalLink) {
+		if (!isMatched || isIgnored || isExternalLink) {
 			return;
 		}
 
