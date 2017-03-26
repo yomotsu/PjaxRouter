@@ -1,18 +1,19 @@
 var router = new PjaxRouter( {
 	triggers: [ 'a' ],
+	ignores: [ 'a.ignore' ],
 	selectors: [ 'title', '.sandbox1', '.sandbox2' ],
 	switches: {
-		'title': function ( oldEl, newEl ) {
+		'title': function ( newEl, oldEl ) {
 
 			document.title = newEl.innerHTML;
 
 		},
-		'.sandbox1': function ( oldEl, newEl ) {
+		'.sandbox1': function ( newEl, oldEl ) {
 
 			document.querySelector('.sandbox1').innerHTML = newEl.innerHTML;
 
 		},
-		'.sandbox2': function ( oldEl, newEl ) {
+		'.sandbox2': function ( newEl, oldEl ) {
 
 			document.querySelector('.sandbox2').innerHTML = newEl.innerHTML;
 

@@ -10,6 +10,7 @@
 
 <a href="index.html">index</a>
 <a href="2.html">2.html</a>
+<a href="external.html" class="ignore">external (ignored link)</a>
 
 <div class="sandbox1">
 	sandbox1 index.html
@@ -22,19 +23,20 @@
 <h2>Example code</h2>
 <pre>var router = new PjaxRouter( {
 	triggers: [ 'a' ],
+	ignores: [ 'a.ignore' ],
 	selectors: [ 'title', '.sandbox1', '.sandbox2' ],
 	switches: {
-		'title': function ( oldEl, newEl ) {
+		'title': function ( newEl, oldEl ) {
 
 			document.title.innerHTML = newEl.innerHTML;
 
 		},
-		'.sandbox1': function ( oldEl, newEl ) {
+		'.sandbox1': function ( newEl, oldEl ) {
 
 			document.querySelector('.sandbox1').innerHTML = newEl.innerHTML;
 
 		},
-		'.sandbox2': function ( oldEl, newEl ) {
+		'.sandbox2': function ( newEl, oldEl ) {
 
 			document.querySelector('.sandbox2').innerHTML = newEl.innerHTML;
 

@@ -11,6 +11,7 @@ class PjaxRouter {
 		// this.loading = false;
 		this.url = location.href;
 		this.triggers = option.triggers;
+		this.ignores = option.ignores || [];
 		this.selectors = option.selectors;
 		this.switches = option.switches;
 
@@ -45,7 +46,7 @@ class PjaxRouter {
 
 			if ( typeof this.switches[ selector ] === 'function' ) {
 
-				this.switches[ selector ]( oldEl, newEl );
+				this.switches[ selector ]( newEl, oldEl );
 
 			}
 
@@ -155,13 +156,11 @@ const origin = new RegExp( location.origin );
 function onLinkClick ( event ) {
 
 	const triggerEl = event.target;
-	const isMatched = this.triggers.some( ( selector ) => elementMatches( triggerEl, selector ) );
-
-	if ( ! isMatched ) { return; }
-
+	const isMatched = this.triggers.some( selector => elementMatches( triggerEl, selector ) );
+	const isIgnored = this.ignores.some( selector => elementMatches( triggerEl, selector ) );
 	const isExternalLink = ! origin.test( triggerEl.href );
 
-	if ( isExternalLink ) { return; }
+	if ( ! isMatched || isIgnored || isExternalLink ) { return; }
 
 	event.preventDefault();
 
