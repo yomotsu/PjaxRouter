@@ -20,17 +20,17 @@ Both standalone lib and NPM package are available.
 ### Standalone
 
 ```html
-<script src="./js/ScrambleText.js"></script>
+<script src="./js/PjaxRouter.js"></script>
 ```
 
 ### NPM
 
 ```
-$ npm install --save scramble-text
+$ npm install --save pjax-router
 ```
 then
 ```javascript
-import ScrambleText from 'scramble-text';
+import PjaxRouter from 'pjax-router';
 ```
 
 ---
