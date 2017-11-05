@@ -202,8 +202,6 @@
 	function onLinkClick(event) {
 
 		var delegateTarget = void 0;
-		var triggerEl = event.target;
-		// const triggerEl = closest( event.target, selector )
 		var isMatched = this.triggers.some(function (selector) {
 
 			delegateTarget = closest(event.target, selector);
@@ -217,12 +215,6 @@
 		if (!isMatched || isIgnored) {
 			return;
 		}
-
-		console.log(delegateTarget);
-
-		// const triggerEl = closest( event.target, selector );
-		// const isMatched = this.triggers.some( selector => elementMatches( triggerEl, selector ) );
-		// const isIgnored = this.ignores.some( selector => elementMatches( triggerEl, selector ) );
 
 		var isExternalLink = !origin.test(delegateTarget.href);
 
