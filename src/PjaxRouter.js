@@ -1,4 +1,5 @@
 import load from './load.js';
+import closest from './closest.js';
 import elementMatches from './elementMatches.js';
 
 class PjaxRouter {
@@ -155,18 +156,27 @@ const origin = new RegExp( location.origin );
 
 function onLinkClick ( event ) {
 
-	const triggerEl = event.target;
-	const isMatched = this.triggers.some( selector => elementMatches( triggerEl, selector ) );
-	const isIgnored = this.ignores.some( selector => elementMatches( triggerEl, selector ) );
-	const isExternalLink = ! origin.test( triggerEl.href );
+	let delegateTarget;
+	const isMatched = this.triggers.some( selector => {
 
-	if ( ! isMatched || isIgnored || isExternalLink ) { return; }
+		delegateTarget = closest( event.target, selector );
+		return !! delegateTarget;
+
+	} );
+
+	const isIgnored = this.ignores.some( selector => !! closest( event.target, selector ) );
+
+	if ( ! isMatched || isIgnored ) { return; }
+
+	const isExternalLink = ! origin.test( delegateTarget.href );
+
+	if ( isExternalLink ) { return; }
 
 	event.preventDefault();
 
-	if ( this.url === triggerEl.href ) { return; }
+	if ( this.url === delegateTarget.href ) { return; }
 
-	this.load( triggerEl.href );
+	this.load( delegateTarget.href );
 
 }
 

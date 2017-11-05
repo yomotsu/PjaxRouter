@@ -44,6 +44,18 @@
 		return matches.call(el, selector);
 	}
 
+	var DOCUMENT_NODE_TYPE = 9;
+
+	function closest(el, selector) {
+
+		while (el && el.nodeType !== DOCUMENT_NODE_TYPE) {
+
+			if (elementMatches(el, selector)) return el;
+
+			el = el.parentNode;
+		}
+	}
+
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var PjaxRouter = function () {
@@ -189,26 +201,42 @@
 
 	function onLinkClick(event) {
 
+		var delegateTarget = void 0;
 		var triggerEl = event.target;
+		// const triggerEl = closest( event.target, selector )
 		var isMatched = this.triggers.some(function (selector) {
-			return elementMatches(triggerEl, selector);
-		});
-		var isIgnored = this.ignores.some(function (selector) {
-			return elementMatches(triggerEl, selector);
-		});
-		var isExternalLink = !origin.test(triggerEl.href);
 
-		if (!isMatched || isIgnored || isExternalLink) {
+			delegateTarget = closest(event.target, selector);
+			return !!delegateTarget;
+		});
+
+		var isIgnored = this.ignores.some(function (selector) {
+			return !!closest(event.target, selector);
+		});
+
+		if (!isMatched || isIgnored) {
+			return;
+		}
+
+		console.log(delegateTarget);
+
+		// const triggerEl = closest( event.target, selector );
+		// const isMatched = this.triggers.some( selector => elementMatches( triggerEl, selector ) );
+		// const isIgnored = this.ignores.some( selector => elementMatches( triggerEl, selector ) );
+
+		var isExternalLink = !origin.test(delegateTarget.href);
+
+		if (isExternalLink) {
 			return;
 		}
 
 		event.preventDefault();
 
-		if (this.url === triggerEl.href) {
+		if (this.url === delegateTarget.href) {
 			return;
 		}
 
-		this.load(triggerEl.href);
+		this.load(delegateTarget.href);
 	}
 
 	function onPopstate(event) {
