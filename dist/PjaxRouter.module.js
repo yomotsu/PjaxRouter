@@ -70,7 +70,7 @@ var PjaxRouter = function () {
 		this.selectors = option.selectors;
 		this.switches = option.switches;
 
-		this._listeners = [];
+		this._listeners = {};
 		this._onLinkClick = onLinkClick.bind(this);
 		this._onPopstate = onPopstate.bind(this);
 
@@ -90,8 +90,8 @@ var PjaxRouter = function () {
 		}
 
 		// this.loading = false;
-		this.dispatch({ type: 'load' });
-		this.dispatch({ type: 'beforeswitch' });
+		this.dispatch('load');
+		this.dispatch('beforeswitch');
 
 		this.selectors.forEach(function (selector) {
 
@@ -104,13 +104,13 @@ var PjaxRouter = function () {
 			}
 		});
 
-		this.dispatch({ type: 'afterswitch' });
+		this.dispatch('afterswitch');
 	};
 
 	PjaxRouter.prototype.load = function load$$1(url, isPopstate) {
 		var _this2 = this;
 
-		this.dispatch({ type: 'beforeload' });
+		this.dispatch('beforeload');
 
 		var loadStartTime = Date.now();
 
@@ -123,7 +123,7 @@ var PjaxRouter = function () {
 			if (!tmpDocument) {
 
 				// onerror or timeout
-				_this2.dispatch({ type: 'error' });
+				_this2.dispatch('error');
 				location.href = _this2.url;
 				return;
 			}
@@ -155,6 +155,18 @@ var PjaxRouter = function () {
 		}
 	};
 
+	PjaxRouter.prototype.once = function once(type, listener) {
+		var _this3 = this;
+
+		var onetimeListener = function onetimeListener() {
+
+			listener();
+			_this3.off(type, onetimeListener);
+		};
+
+		this.on(type, onetimeListener);
+	};
+
 	PjaxRouter.prototype.off = function off(type, listener) {
 
 		var listenerArray = this._listeners[type];
@@ -170,18 +182,17 @@ var PjaxRouter = function () {
 		}
 	};
 
-	PjaxRouter.prototype.dispatch = function dispatch(event) {
+	PjaxRouter.prototype.dispatch = function dispatch(type) {
 
-		var listenerArray = this._listeners[event.type];
+		var listenerArray = this._listeners[type];
 
 		if (!!listenerArray) {
 
-			event.target = this;
 			var length = listenerArray.length;
 
 			for (var i = 0; i < length; i++) {
 
-				listenerArray[i].call(this, event);
+				listenerArray[i].call(this);
 			}
 		}
 	};

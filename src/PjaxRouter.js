@@ -16,7 +16,7 @@ class PjaxRouter {
 		this.selectors = option.selectors;
 		this.switches = option.switches;
 
-		this._listeners = [];
+		this._listeners = {};
 		this._onLinkClick = onLinkClick.bind( this );
 		this._onPopstate = onPopstate.bind( this );
 
@@ -37,8 +37,8 @@ class PjaxRouter {
 		if ( this.lastStartTime !== loadStartTime ) { return; }
 
 		// this.loading = false;
-		this.dispatch( { type: 'load' } );
-		this.dispatch( { type: 'beforeswitch' } );
+		this.dispatch( 'load' );
+		this.dispatch( 'beforeswitch' );
 
 		this.selectors.forEach( ( selector ) => {
 
@@ -53,13 +53,13 @@ class PjaxRouter {
 
 		} );
 
-		this.dispatch( { type: 'afterswitch' } );
+		this.dispatch( 'afterswitch' );
 
 	}
 
 	load ( url, isPopstate ) {
 
-		this.dispatch( { type: 'beforeload' } );
+		this.dispatch( 'beforeload' );
 
 		const loadStartTime = Date.now();
 
@@ -72,7 +72,7 @@ class PjaxRouter {
 			if ( ! tmpDocument ) {
 
 				// onerror or timeout
-				this.dispatch( { type: 'error' } );
+				this.dispatch( 'error' );
 				location.href = this.url;
 				return;
 
@@ -111,6 +111,19 @@ class PjaxRouter {
 
 	}
 
+	once ( type, listener ) {
+
+		const onetimeListener = () => {
+
+			listener();
+			this.off( type, onetimeListener );
+
+		}
+
+		this.on( type, onetimeListener );
+
+	}
+
 	off ( type, listener ) {
 
 		const listenerArray = this._listeners[ type ];
@@ -129,18 +142,17 @@ class PjaxRouter {
 
 	}
 
-	dispatch ( event ) {
+	dispatch ( type ) {
 
-		const listenerArray = this._listeners[ event.type ];
+		const listenerArray = this._listeners[ type ];
 
 		if ( !! listenerArray ) {
 
-			event.target = this;
 			const length = listenerArray.length;
 
 			for ( let i = 0; i < length; i ++ ) {
 
-				listenerArray[ i ].call( this, event );
+				listenerArray[ i ].call( this );
 
 			}
 

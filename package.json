@@ -8,14 +8,15 @@
   "jsnext:main": "dist/PjaxRouter.module.js",
   "module": "dist/PjaxRouter.module.js",
   "devDependencies": {
+    "babel-core": "^6.26.0",
     "babel-preset-env": "1.6.1",
-    "rollup": "^0.50.0",
+    "rollup": "^0.51.5",
     "rollup-plugin-babel": "3.0.2",
     "rollup-watch": "^4.3.1",
-    "uglify-js": "^3.1.7"
+    "uglify-js": "^3.1.9"
   },
   "scripts": {
-    "start": "npm run watch",
+    "dev": "npm run watch",
     "watch": "rollup --config --watch",
     "build": "rollup --config",
     "release": "rollup --config && uglifyjs dist/PjaxRouter.js -cm --preamble \"/*!\n * PjaxRouter\n * https://github.com/yomotsu/PjaxRouter\n * (c) 2017 @yomotsu\n * Released under the MIT License.\n */\" > dist/PjaxRouter.min.js"

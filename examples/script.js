@@ -17,6 +17,12 @@ var router = new PjaxRouter( {
 
 			document.querySelector('.sandbox2').innerHTML = newEl.innerHTML;
 
+			setTimeout( function () {
+
+				router.dispatch( 'delay1second' );
+
+			}, 1000 );
+
 		}
 	}
 } );
@@ -26,3 +32,8 @@ router.on( 'load',         function () { console.log( 'load' );         } );
 router.on( 'beforeswitch', function () { console.log( 'beforeswitch' ); } );
 router.on( 'afterswitch',  function () { console.log( 'afterswitch' );  } );
 router.on( 'error',        function () { console.log( 'error' );        } );
+
+// custom event
+router.on( 'delay1second', function () { console.log( '1sec delay' );   } );
+
+router.once( 'load',       function () { console.log( 'onetime load' ); } );

@@ -8,7 +8,20 @@ const license = `/*!
  */`
 
 export default {
-	entry: 'src/PjaxRouter.js',
+	input: 'src/PjaxRouter.js',
+	output: [
+		{
+			format: 'umd',
+			name: 'PjaxRouter',
+			file: 'dist/PjaxRouter.js',
+			banner: license
+		},
+		{
+			format: 'es',
+			file: 'dist/PjaxRouter.module.js',
+			banner: license
+		}
+	],
 	indent: '\t',
 	sourceMap: false,
 	plugins: [
@@ -27,18 +40,5 @@ export default {
 				} ]
 			]
 		} )
-	],
-	targets: [
-		{
-			format: 'umd',
-			moduleName: 'PjaxRouter',
-			dest: 'dist/PjaxRouter.js',
-			banner: license
-		},
-		{
-			format: 'es',
-			dest: 'dist/PjaxRouter.module.js',
-			banner: license
-		}
 	]
 };
