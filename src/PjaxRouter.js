@@ -1,14 +1,13 @@
 import load from './load.js';
 import closest from './closest.js';
-import elementMatches from './elementMatches.js';
 
 class PjaxRouter {
 
-	constructor ( option = {} ) {
+	constructor( option = {} ) {
 
-		if ( ! PjaxRouter.supported ) { return; }
+		if ( ! PjaxRouter.supported ) return;
 
-		this.lastStartTime = -1;
+		this.lastStartTime = - 1;
 		// this.loading = false;
 		this.url = location.href;
 		this.triggers = option.triggers;
@@ -32,13 +31,10 @@ class PjaxRouter {
 
 	}
 
-	pageTransition ( tmpDocument, loadStartTime ) {
-
-		if ( this.lastStartTime !== loadStartTime ) { return; }
+	pageTransition( tmpDocument ) {
 
 		// this.loading = false;
-		this.dispatch( 'load' );
-		this.dispatch( 'beforeswitch' );
+		this.emit( 'beforeswitch' );
 
 		this.selectors.forEach( ( selector ) => {
 
@@ -53,13 +49,13 @@ class PjaxRouter {
 
 		} );
 
-		this.dispatch( 'afterswitch' );
+		this.emit( 'afterswitch' );
 
 	}
 
-	load ( url, isPopstate ) {
+	load( url, isPopstate ) {
 
-		this.dispatch( 'beforeload' );
+		this.emit( 'beforeload' );
 
 		const loadStartTime = Date.now();
 
@@ -67,35 +63,46 @@ class PjaxRouter {
 		// this.loading = true;
 		this.lastStartTime = loadStartTime;
 
-		load( this.url, ( tmpDocument ) => {
+		load(
+			this.url,
+			( tmpDocument, progress ) => {
 
-			if ( ! tmpDocument ) {
+				if ( ! tmpDocument ) {
 
-				// onerror or timeout
-				this.dispatch( 'error' );
-				location.href = this.url;
-				return;
+					// onerror or timeout
+					this.emit( 'error' );
+					location.href = this.url;
+					return;
+
+				}
+
+				if ( ! isPopstate ) {
+
+					const title = tmpDocument.querySelector( 'title' ).textContent;
+					const state = {
+						url: this.url,
+						scrollTop: document.body.scrollTop || document.documentElement.scrollTop
+					};
+					history.pushState( state, title, this.url );
+
+				}
+
+				if ( this.lastStartTime !== loadStartTime ) return;
+
+				this.emit( 'load', progress );
+				this.pageTransition( tmpDocument );
+
+			},
+			progress => {
+
+				this.emit( 'loading', progress );
 
 			}
-
-			if ( ! isPopstate ) {
-
-				const title = tmpDocument.querySelector( 'title' ).textContent;
-				const state = {
-					url: this.url,
-					scrollTop: document.body.scrollTop || document.documentElement.scrollTop
-				};
-				history.pushState( state, title, this.url );
-
-			}
-
-			this.pageTransition( tmpDocument, loadStartTime );
-
-		} );
+		);
 
 	}
 
-	on ( type, listener ) {
+	on( type, listener, options ) {
 
 		if ( ! this._listeners[ type ] ) {
 
@@ -103,38 +110,49 @@ class PjaxRouter {
 
 		}
 
-		if ( this._listeners[ type ].indexOf( listener ) === - 1 ) {
+		const handler = {
+			callback: listener,
+			once    : options && options.once || false
+		};
+		const contains = this._listeners[ type ].some( handler => {
 
-			this._listeners[ type ].push( listener );
+			return handler.listener === listener;
+
+		} );
+
+		if ( ! contains ) {
+
+			this._listeners[ type ].push( handler );
 
 		}
 
 	}
 
-	once ( type, listener ) {
+	once( type, listener ) {
 
-		const onetimeListener = () => {
-
-			listener();
-			this.off( type, onetimeListener );
-
-		}
-
-		this.on( type, onetimeListener );
+		this.on( type, listener, { once: true } );
 
 	}
 
-	off ( type, listener ) {
+	off( type, listener ) {
+
+		if ( ! this._listeners[ type ] ) return;
+
+		if ( ! listener ) {
+
+			delete this._listeners[ type ];
+			return;
+
+		}
 
 		const listenerArray = this._listeners[ type ];
 
-		if ( !!listenerArray ) {
+		for ( let i = 0, l = listenerArray.length; i < l; i += 1 ) {
 
-			const index = listenerArray.indexOf( listener );
+			if ( listenerArray[ i ].callback === listener ) {
 
-			if ( index !== - 1 ) {
-
-				listenerArray.splice( index, 1 );
+				listenerArray.splice( i, 1 );
+				return;
 
 			}
 
@@ -142,21 +160,18 @@ class PjaxRouter {
 
 	}
 
-	dispatch ( type ) {
+	emit( type, argument ) {
 
 		const listenerArray = this._listeners[ type ];
 
-		if ( !! listenerArray ) {
+		if ( ! listenerArray ) return;
 
-			const length = listenerArray.length;
+		this._listeners[ type ] = listenerArray.filter( el => {
 
-			for ( let i = 0; i < length; i ++ ) {
+			el.callback.call( this, argument );
+			return ! el.once;
 
-				listenerArray[ i ].call( this );
-
-			}
-
-		}
+		} );
 
 	}
 
@@ -166,7 +181,7 @@ PjaxRouter.supported = ( window.history && window.history.pushState );
 
 const origin = new RegExp( location.origin );
 
-function onLinkClick ( event ) {
+function onLinkClick( event ) {
 
 	let delegateTarget;
 	const isMatched = this.triggers.some( selector => {
@@ -178,24 +193,24 @@ function onLinkClick ( event ) {
 
 	const isIgnored = this.ignores.some( selector => !! closest( event.target, selector ) );
 
-	if ( ! isMatched || isIgnored ) { return; }
+	if ( ! isMatched || isIgnored ) return;
 
 	const isExternalLink = ! origin.test( delegateTarget.href );
 
-	if ( isExternalLink ) { return; }
+	if ( isExternalLink ) return;
 
 	event.preventDefault();
 
-	if ( this.url === delegateTarget.href ) { return; }
+	if ( this.url === delegateTarget.href ) return;
 
 	this.load( delegateTarget.href );
 
 }
 
 
-function onPopstate ( event ) {
+function onPopstate( event ) {
 
-	if ( ! event.state ) { return; }
+	if ( ! event.state ) return;
 
 	this.load( event.state.url, true );
 

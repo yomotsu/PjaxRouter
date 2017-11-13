@@ -19,7 +19,7 @@ var router = new PjaxRouter( {
 
 			setTimeout( function () {
 
-				router.dispatch( 'delay1second' );
+				router.emit( 'delay1second' );
 
 			}, 1000 );
 
@@ -28,7 +28,8 @@ var router = new PjaxRouter( {
 } );
 
 router.on( 'beforeload',   function () { console.log( 'beforeload' );   } );
-router.on( 'load',         function () { console.log( 'load' );         } );
+router.on( 'loading',      function ( progress ) { console.log( 'loading', progress );} );
+router.on( 'load',         function ( progress ) { console.log( 'loaded', progress );} );
 router.on( 'beforeswitch', function () { console.log( 'beforeswitch' ); } );
 router.on( 'afterswitch',  function () { console.log( 'afterswitch' );  } );
 router.on( 'error',        function () { console.log( 'error' );        } );

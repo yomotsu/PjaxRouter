@@ -13,24 +13,39 @@
 	var tmpDocument = document.createElement('html');
 	var xhr = new XMLHttpRequest();
 
-	var load = function load(url, callback) {
+	var load = function load(url, loadedCallback, loadingCallback) {
+
+		var startTime = Date.now();
 
 		xhr.open('GET', url, true);
 		xhr.timeout = 5000;
-		xhr.onload = function () {
+		xhr.onload = function (event) {
 
 			tmpDocument.innerHTML = xhr.responseText.replace(/^(.+)?<html(.+)?>/gi, '');
-			callback(tmpDocument);
+			loadedCallback(tmpDocument, {
+				loaded: event.loaded,
+				total: event.total,
+				elapsedTime: Date.now() - startTime
+			});
 		};
 
 		xhr.ontimeout = function () {
 
-			callback(null);
+			loadedCallback(null);
 		};
 
 		xhr.onerror = function () {
 
-			callback(null);
+			loadedCallback(null);
+		};
+
+		xhr.onprogress = function (event) {
+
+			loadingCallback({
+				loaded: event.loaded,
+				total: event.total,
+				elapsedTime: Date.now() - startTime
+			});
 		};
 
 		xhr.send(null);
@@ -64,9 +79,7 @@
 
 			_classCallCheck(this, PjaxRouter);
 
-			if (!PjaxRouter.supported) {
-				return;
-			}
+			if (!PjaxRouter.supported) return;
 
 			this.lastStartTime = -1;
 			// this.loading = false;
@@ -88,16 +101,11 @@
 			window.addEventListener('popstate', this._onPopstate);
 		}
 
-		PjaxRouter.prototype.pageTransition = function pageTransition(tmpDocument, loadStartTime) {
+		PjaxRouter.prototype.pageTransition = function pageTransition(tmpDocument) {
 			var _this = this;
 
-			if (this.lastStartTime !== loadStartTime) {
-				return;
-			}
-
 			// this.loading = false;
-			this.dispatch('load');
-			this.dispatch('beforeswitch');
+			this.emit('beforeswitch');
 
 			this.selectors.forEach(function (selector) {
 
@@ -110,13 +118,13 @@
 				}
 			});
 
-			this.dispatch('afterswitch');
+			this.emit('afterswitch');
 		};
 
 		PjaxRouter.prototype.load = function load$$1(url, isPopstate) {
 			var _this2 = this;
 
-			this.dispatch('beforeload');
+			this.emit('beforeload');
 
 			var loadStartTime = Date.now();
 
@@ -124,12 +132,12 @@
 			// this.loading = true;
 			this.lastStartTime = loadStartTime;
 
-			load(this.url, function (tmpDocument) {
+			load(this.url, function (tmpDocument, progress) {
 
 				if (!tmpDocument) {
 
 					// onerror or timeout
-					_this2.dispatch('error');
+					_this2.emit('error');
 					location.href = _this2.url;
 					return;
 				}
@@ -144,63 +152,77 @@
 					history.pushState(state, title, _this2.url);
 				}
 
-				_this2.pageTransition(tmpDocument, loadStartTime);
+				if (_this2.lastStartTime !== loadStartTime) return;
+
+				_this2.emit('load', progress);
+				_this2.pageTransition(tmpDocument);
+			}, function (progress) {
+
+				_this2.emit('loading', progress);
 			});
 		};
 
-		PjaxRouter.prototype.on = function on(type, listener) {
+		PjaxRouter.prototype.on = function on(type, listener, options) {
 
 			if (!this._listeners[type]) {
 
 				this._listeners[type] = [];
 			}
 
-			if (this._listeners[type].indexOf(listener) === -1) {
+			var handler = {
+				callback: listener,
+				once: options && options.once || false
+			};
+			var contains = this._listeners[type].some(function (handler) {
 
-				this._listeners[type].push(listener);
+				return handler.listener === listener;
+			});
+
+			if (!contains) {
+
+				this._listeners[type].push(handler);
 			}
 		};
 
 		PjaxRouter.prototype.once = function once(type, listener) {
-			var _this3 = this;
 
-			var onetimeListener = function onetimeListener() {
-
-				listener();
-				_this3.off(type, onetimeListener);
-			};
-
-			this.on(type, onetimeListener);
+			this.on(type, listener, { once: true });
 		};
 
 		PjaxRouter.prototype.off = function off(type, listener) {
 
+			if (!this._listeners[type]) return;
+
+			if (!listener) {
+
+				delete this._listeners[type];
+				return;
+			}
+
 			var listenerArray = this._listeners[type];
 
-			if (!!listenerArray) {
+			for (var i = 0, l = listenerArray.length; i < l; i += 1) {
 
-				var index = listenerArray.indexOf(listener);
+				if (listenerArray[i].callback === listener) {
 
-				if (index !== -1) {
-
-					listenerArray.splice(index, 1);
+					listenerArray.splice(i, 1);
+					return;
 				}
 			}
 		};
 
-		PjaxRouter.prototype.dispatch = function dispatch(type) {
+		PjaxRouter.prototype.emit = function emit(type, argument) {
+			var _this3 = this;
 
 			var listenerArray = this._listeners[type];
 
-			if (!!listenerArray) {
+			if (!listenerArray) return;
 
-				var length = listenerArray.length;
+			this._listeners[type] = listenerArray.filter(function (el) {
 
-				for (var i = 0; i < length; i++) {
-
-					listenerArray[i].call(this);
-				}
-			}
+				el.callback.call(_this3, argument);
+				return !el.once;
+			});
 		};
 
 		return PjaxRouter;
@@ -223,30 +245,22 @@
 			return !!closest(event.target, selector);
 		});
 
-		if (!isMatched || isIgnored) {
-			return;
-		}
+		if (!isMatched || isIgnored) return;
 
 		var isExternalLink = !origin.test(delegateTarget.href);
 
-		if (isExternalLink) {
-			return;
-		}
+		if (isExternalLink) return;
 
 		event.preventDefault();
 
-		if (this.url === delegateTarget.href) {
-			return;
-		}
+		if (this.url === delegateTarget.href) return;
 
 		this.load(delegateTarget.href);
 	}
 
 	function onPopstate(event) {
 
-		if (!event.state) {
-			return;
-		}
+		if (!event.state) return;
 
 		this.load(event.state.url, true);
 	}

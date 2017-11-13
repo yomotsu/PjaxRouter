@@ -1,31 +1,50 @@
 const tmpDocument = document.createElement( 'html' );
 const xhr = new XMLHttpRequest();
 
-const load = ( url, callback ) => {
+const load = ( url, loadedCallback, loadingCallback ) => {
+
+	const startTime = Date.now();
 
 	xhr.open( 'GET', url, true );
 	xhr.timeout = 5000;
-	xhr.onload = () => {
+	xhr.onload = ( event ) => {
 
 		tmpDocument.innerHTML = xhr.responseText.replace( /^(.+)?<html(.+)?>/gi, '' );
-		callback( tmpDocument );
+		loadedCallback(
+			tmpDocument,
+			{
+				loaded: event.loaded,
+				total: event.total,
+				elapsedTime: Date.now() - startTime
+			}
+		);
 
-	}
+	};
 
 	xhr.ontimeout = function () {
 
-		callback( null );
+		loadedCallback( null );
 
 	};
 
 	xhr.onerror = function () {
 
-	  callback( null );
+	  loadedCallback( null );
+
+	};
+
+	xhr.onprogress = ( event ) => {
+
+		loadingCallback( {
+			loaded: event.loaded,
+			total: event.total,
+			elapsedTime: Date.now() - startTime
+		} );
 
 	};
 
 	xhr.send( null );
 
-}
+};
 
 export default load;

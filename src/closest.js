@@ -2,7 +2,7 @@ import elementMatches from './elementMatches.js';
 
 const DOCUMENT_NODE_TYPE = 9;
 
-function closest ( el, selector ) {
+function closest( el, selector ) {
 
 	while ( el && el.nodeType !== DOCUMENT_NODE_TYPE ) {
 
