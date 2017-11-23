@@ -1,12 +1,12 @@
 const tmpDocument = document.createElement( 'html' );
 const xhr = new XMLHttpRequest();
 
-const load = ( url, loadedCallback, loadingCallback ) => {
+const load = ( url, loadedCallback, loadingCallback, timeout = 5000 ) => {
 
 	const startTime = Date.now();
 
 	xhr.open( 'GET', url, true );
-	xhr.timeout = 5000;
+	xhr.timeout = timeout;
 	xhr.onload = ( event ) => {
 
 		tmpDocument.innerHTML = xhr.responseText.replace( /^(.+)?<html(.+)?>/gi, '' );

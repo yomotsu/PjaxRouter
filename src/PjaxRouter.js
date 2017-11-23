@@ -10,7 +10,8 @@ class PjaxRouter {
 		this.lastStartTime = - 1;
 		// this.loading = false;
 		this.url = location.href;
-		this.triggers = option.triggers;
+		this.xhrTimeout = option.xhrTimeout || 5000;
+		this.triggers = option.triggers || [];
 		this.ignores = option.ignores || [];
 		this.selectors = option.selectors;
 		this.switches = option.switches;
@@ -97,7 +98,8 @@ class PjaxRouter {
 
 				this.emit( 'loading', progress );
 
-			}
+			},
+			this.xhrTimeout
 		);
 
 	}
