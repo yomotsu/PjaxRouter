@@ -43,7 +43,7 @@ class PjaxRouter {
 
 			if ( typeof this.switches[ selector ] === 'function' ) {
 
-				this.switches[ selector ]( newEl, oldEl );
+				this.switches[ selector ].bind( this )( newEl, oldEl );
 
 			}
 

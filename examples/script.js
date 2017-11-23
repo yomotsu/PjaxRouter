@@ -15,6 +15,8 @@ var router = new PjaxRouter( {
 		},
 		'.sandbox2': function ( newEl, oldEl ) {
 
+			var router = this;
+
 			document.querySelector('.sandbox2').innerHTML = newEl.innerHTML;
 
 			setTimeout( function () {
