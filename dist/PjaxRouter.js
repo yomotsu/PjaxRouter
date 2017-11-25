@@ -10,19 +10,20 @@
 	(global.PjaxRouter = factory());
 }(this, (function () { 'use strict';
 
-	var tmpDocument = document.createElement('html');
+	// const tmpDocument = document.createElement( 'html' );
 	var xhr = new XMLHttpRequest();
 
 	var load = function load(url, loadedCallback, loadingCallback) {
+		var timeout = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 5000;
+
 
 		var startTime = Date.now();
 
 		xhr.open('GET', url, true);
-		xhr.timeout = 5000;
+		xhr.timeout = timeout;
 		xhr.onload = function (event) {
 
-			tmpDocument.innerHTML = xhr.responseText.replace(/^(.+)?<html(.+)?>/gi, '');
-			loadedCallback(tmpDocument, {
+			loadedCallback(xhr.responseText, {
 				loaded: event.loaded,
 				total: event.total,
 				elapsedTime: Date.now() - startTime
@@ -73,6 +74,8 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+	var tmpDocument = document.createElement('html');
+
 	var PjaxRouter = function () {
 		function PjaxRouter() {
 			var option = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
@@ -84,7 +87,8 @@
 			this.lastStartTime = -1;
 			// this.loading = false;
 			this.url = location.href;
-			this.triggers = option.triggers;
+			this.xhrTimeout = option.xhrTimeout || 5000;
+			this.triggers = option.triggers || [];
 			this.ignores = option.ignores || [];
 			this.selectors = option.selectors;
 			this.switches = option.switches;
@@ -101,11 +105,13 @@
 			window.addEventListener('popstate', this._onPopstate);
 		}
 
-		PjaxRouter.prototype.pageTransition = function pageTransition(tmpDocument) {
+		PjaxRouter.prototype.pageTransition = function pageTransition(htmlSrc) {
 			var _this = this;
 
 			// this.loading = false;
 			this.emit('beforeswitch');
+
+			tmpDocument.innerHTML = htmlSrc.replace(/^(.+)?<html(.+)?>/gi, '');
 
 			this.selectors.forEach(function (selector) {
 
@@ -114,9 +120,11 @@
 
 				if (typeof _this.switches[selector] === 'function') {
 
-					_this.switches[selector](newEl, oldEl);
+					_this.switches[selector].bind(_this)(newEl, oldEl);
 				}
 			});
+
+			tmpDocument.innerHTML = '';
 
 			this.emit('afterswitch');
 		};
@@ -132,9 +140,9 @@
 			// this.loading = true;
 			this.lastStartTime = loadStartTime;
 
-			load(this.url, function (tmpDocument, progress) {
+			load(this.url, function (htmlSrc, progress) {
 
-				if (!tmpDocument) {
+				if (!htmlSrc) {
 
 					// onerror or timeout
 					_this2.emit('error');
@@ -144,7 +152,8 @@
 
 				if (!isPopstate) {
 
-					var title = tmpDocument.querySelector('title').textContent;
+					var matchedTitle = htmlSrc.match(/<title[^>]*>([^<]+)<\/title>/i);
+					var title = !!matchedTitle ? matchedTitle[1] : _this2.url;
 					var state = {
 						url: _this2.url,
 						scrollTop: document.body.scrollTop || document.documentElement.scrollTop
@@ -155,11 +164,11 @@
 				if (_this2.lastStartTime !== loadStartTime) return;
 
 				_this2.emit('load', progress);
-				_this2.pageTransition(tmpDocument);
+				_this2.pageTransition(htmlSrc);
 			}, function (progress) {
 
 				_this2.emit('loading', progress);
-			});
+			}, this.xhrTimeout);
 		};
 
 		PjaxRouter.prototype.on = function on(type, listener, options) {
