@@ -1,4 +1,4 @@
-const tmpDocument = document.createElement( 'html' );
+// const tmpDocument = document.createElement( 'html' );
 const xhr = new XMLHttpRequest();
 
 const load = ( url, loadedCallback, loadingCallback, timeout = 5000 ) => {
@@ -9,9 +9,8 @@ const load = ( url, loadedCallback, loadingCallback, timeout = 5000 ) => {
 	xhr.timeout = timeout;
 	xhr.onload = ( event ) => {
 
-		tmpDocument.innerHTML = xhr.responseText.replace( /^(.+)?<html(.+)?>/gi, '' );
 		loadedCallback(
-			tmpDocument,
+			xhr.responseText,
 			{
 				loaded: event.loaded,
 				total: event.total,
