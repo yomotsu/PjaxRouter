@@ -74,8 +74,6 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var tmpDocument = document.createElement('html');
-
 	var PjaxRouter = function () {
 		function PjaxRouter() {
 			var option = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
@@ -105,26 +103,22 @@
 			window.addEventListener('popstate', this._onPopstate);
 		}
 
-		PjaxRouter.prototype.pageTransition = function pageTransition(htmlSrc) {
+		PjaxRouter.prototype.pageTransition = function pageTransition(newDocument) {
 			var _this = this;
 
 			// this.loading = false;
 			this.emit('beforeswitch');
 
-			tmpDocument.innerHTML = htmlSrc.replace(/^(.+)?<html(.+)?>/gi, '');
-
 			this.selectors.forEach(function (selector) {
 
 				var oldEl = document.querySelector(selector);
-				var newEl = tmpDocument.querySelector(selector);
+				var newEl = newDocument.querySelector(selector);
 
 				if (typeof _this.switches[selector] === 'function') {
 
 					_this.switches[selector].bind(_this)(newEl, oldEl);
 				}
 			});
-
-			tmpDocument.innerHTML = '';
 
 			this.emit('afterswitch');
 		};
@@ -150,10 +144,12 @@
 					return;
 				}
 
+				var parser = new DOMParser();
+				var newDocument = parser.parseFromString(htmlSrc, 'text/html');
+
 				if (!isPopstate) {
 
-					var matchedTitle = htmlSrc.match(/<title[^>]*>([^<]+)<\/title>/i);
-					var title = !!matchedTitle ? matchedTitle[1] : _this2.url;
+					var title = !!newDocument.querySelector('title').innerHTML || _this2.url;
 					var state = {
 						url: _this2.url,
 						scrollTop: document.body.scrollTop || document.documentElement.scrollTop
@@ -164,7 +160,7 @@
 				if (_this2.lastStartTime !== loadStartTime) return;
 
 				_this2.emit('load', progress);
-				_this2.pageTransition(htmlSrc);
+				_this2.pageTransition(newDocument);
 			}, function (progress) {
 
 				_this2.emit('loading', progress);
