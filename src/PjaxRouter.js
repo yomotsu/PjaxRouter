@@ -1,8 +1,6 @@
 import load from './load.js';
 import closest from './closest.js';
 
-const tmpDocument = document.createElement( 'html' );
-
 class PjaxRouter {
 
 	constructor( option = {} ) {
@@ -34,17 +32,15 @@ class PjaxRouter {
 
 	}
 
-	pageTransition( htmlSrc ) {
+	pageTransition( newDocument ) {
 
 		// this.loading = false;
 		this.emit( 'beforeswitch' );
 
-		tmpDocument.innerHTML = htmlSrc.replace( /^(.+)?<html(.+)?>/gi, '' );
-
 		this.selectors.forEach( ( selector ) => {
 
 			const oldEl = document.querySelector( selector );
-			const newEl = tmpDocument.querySelector( selector );
+			const newEl = newDocument.querySelector( selector );
 
 			if ( typeof this.switches[ selector ] === 'function' ) {
 
@@ -53,8 +49,6 @@ class PjaxRouter {
 			}
 
 		} );
-
-		tmpDocument.innerHTML = '';
 
 		this.emit( 'afterswitch' );
 
@@ -83,10 +77,12 @@ class PjaxRouter {
 
 				}
 
+				const parser = new DOMParser();
+				const newDocument = parser.parseFromString( htmlSrc, 'text/html' );
+
 				if ( ! isPopstate ) {
 
-					const matchedTitle = htmlSrc.match( /<title[^>]*>([^<]+)<\/title>/i );
-					const title = !! matchedTitle ? matchedTitle[ 1 ] : this.url;
+					const title = !! newDocument.querySelector( 'title' ).innerHTML || this.url;
 					const state = {
 						url: this.url,
 						scrollTop: document.body.scrollTop || document.documentElement.scrollTop
@@ -98,7 +94,7 @@ class PjaxRouter {
 				if ( this.lastStartTime !== loadStartTime ) return;
 
 				this.emit( 'load', progress );
-				this.pageTransition( htmlSrc );
+				this.pageTransition( newDocument );
 
 			},
 			progress => {
