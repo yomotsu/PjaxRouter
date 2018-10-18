@@ -13,261 +13,226 @@
 	// const tmpDocument = document.createElement( 'html' );
 	var xhr = new XMLHttpRequest();
 
-	var load = function load(url, loadedCallback, loadingCallback) {
-		var timeout = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 5000;
+	var load = function load(url, loadedCallback, loadingCallback, timeout) {
+	  if (timeout === void 0) {
+	    timeout = 5000;
+	  }
 
+	  var startTime = Date.now();
+	  xhr.open('GET', url, true);
+	  xhr.timeout = timeout;
 
-		var startTime = Date.now();
+	  xhr.onload = function (event) {
+	    loadedCallback(xhr.responseText, {
+	      loaded: event.loaded,
+	      total: event.total,
+	      elapsedTime: Date.now() - startTime
+	    });
+	  };
 
-		xhr.open('GET', url, true);
-		xhr.timeout = timeout;
-		xhr.onload = function (event) {
+	  xhr.ontimeout = function () {
+	    loadedCallback(null);
+	  };
 
-			loadedCallback(xhr.responseText, {
-				loaded: event.loaded,
-				total: event.total,
-				elapsedTime: Date.now() - startTime
-			});
-		};
+	  xhr.onerror = function () {
+	    loadedCallback(null);
+	  };
 
-		xhr.ontimeout = function () {
+	  xhr.onprogress = function (event) {
+	    loadingCallback({
+	      loaded: event.loaded,
+	      total: event.total,
+	      elapsedTime: Date.now() - startTime
+	    });
+	  };
 
-			loadedCallback(null);
-		};
-
-		xhr.onerror = function () {
-
-			loadedCallback(null);
-		};
-
-		xhr.onprogress = function (event) {
-
-			loadingCallback({
-				loaded: event.loaded,
-				total: event.total,
-				elapsedTime: Date.now() - startTime
-			});
-		};
-
-		xhr.send(null);
+	  xhr.send(null);
 	};
 
 	// https://developer.mozilla.org/ja/docs/Web/API/Element/matches#Polyfill
-	var matches = Element.prototype.matches || Element.prototype.matchesSelector || Element.prototype.mozMatchesSelector || Element.prototype.msMatchesSelector || Element.prototype.oMatchesSelector || Element.prototype.webkitMatchesSelector;
+	var matches = Element.prototype.matches || Element.prototype.matchesSelector || Element.prototype.mozMatchesSelector || Element.prototype.msMatchesSelector || Element.prototype.webkitMatchesSelector;
 
 	function elementMatches(el, selector) {
-
-		return matches.call(el, selector);
+	  return matches.call(el, selector);
 	}
 
 	var DOCUMENT_NODE_TYPE = 9;
 
 	function closest(el, selector) {
-
-		while (el && el.nodeType !== DOCUMENT_NODE_TYPE) {
-
-			if (elementMatches(el, selector)) return el;
-
-			el = el.parentNode;
-		}
+	  while (el && el.nodeType !== DOCUMENT_NODE_TYPE) {
+	    if (elementMatches(el, selector)) return el;
+	    el = el.parentNode;
+	  }
 	}
 
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	var PjaxRouter =
+	/*#__PURE__*/
+	function () {
+	  function PjaxRouter(option) {
+	    if (option === void 0) {
+	      option = {};
+	    }
 
-	var PjaxRouter = function () {
-		function PjaxRouter() {
-			var option = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+	    if (!PjaxRouter.supported) return;
+	    this.lastStartTime = -1; // this.loading = false;
 
-			_classCallCheck(this, PjaxRouter);
+	    this.url = location.href;
+	    this.xhrTimeout = option.xhrTimeout || 5000;
+	    this.triggers = option.triggers || [];
+	    this.ignores = option.ignores || [];
+	    this.selectors = option.selectors;
+	    this.switches = option.switches;
+	    this._listeners = {};
+	    this._onLinkClick = onLinkClick.bind(this);
+	    this._onPopstate = onPopstate.bind(this);
+	    window.history.replaceState({
+	      url: window.location.href,
+	      scrollTop: document.body.scrollTop || document.documentElement.scrollTop
+	    }, document.title);
+	    document.body.addEventListener('click', this._onLinkClick);
+	    window.addEventListener('popstate', this._onPopstate);
+	  }
 
-			if (!PjaxRouter.supported) return;
+	  var _proto = PjaxRouter.prototype;
 
-			this.lastStartTime = -1;
-			// this.loading = false;
-			this.url = location.href;
-			this.xhrTimeout = option.xhrTimeout || 5000;
-			this.triggers = option.triggers || [];
-			this.ignores = option.ignores || [];
-			this.selectors = option.selectors;
-			this.switches = option.switches;
+	  _proto.pageTransition = function pageTransition(newDocument) {
+	    var _this = this;
 
-			this._listeners = {};
-			this._onLinkClick = onLinkClick.bind(this);
-			this._onPopstate = onPopstate.bind(this);
+	    // this.loading = false;
+	    this.emit('beforeswitch', {
+	      nextUrl: url
+	    });
+	    this.selectors.forEach(function (selector) {
+	      var oldEl = document.querySelector(selector);
+	      var newEl = newDocument.querySelector(selector);
 
-			window.history.replaceState({
-				url: window.location.href,
-				scrollTop: document.body.scrollTop || document.documentElement.scrollTop
-			}, document.title);
-			document.body.addEventListener('click', this._onLinkClick);
-			window.addEventListener('popstate', this._onPopstate);
-		}
+	      if (typeof _this.switches[selector] === 'function') {
+	        _this.switches[selector].bind(_this)(newEl, oldEl);
+	      }
+	    });
+	    this.emit('afterswitch');
+	  };
 
-		PjaxRouter.prototype.pageTransition = function pageTransition(newDocument) {
-			var _this = this;
+	  _proto.load = function load$$1(url, isPopstate) {
+	    var _this2 = this;
 
-			// this.loading = false;
-			this.emit('beforeswitch');
+	    this.emit('beforeload');
+	    var loadStartTime = Date.now();
+	    this.url = url; // this.loading = true;
 
-			this.selectors.forEach(function (selector) {
+	    this.lastStartTime = loadStartTime;
 
-				var oldEl = document.querySelector(selector);
-				var newEl = newDocument.querySelector(selector);
+	    load(this.url, function (htmlSrc, progress) {
+	      if (!htmlSrc) {
+	        // onerror or timeout
+	        _this2.emit('error');
 
-				if (typeof _this.switches[selector] === 'function') {
+	        location.href = _this2.url;
+	        return;
+	      }
 
-					_this.switches[selector].bind(_this)(newEl, oldEl);
-				}
-			});
+	      var parser = new DOMParser();
+	      var newDocument = parser.parseFromString(htmlSrc, 'text/html');
 
-			this.emit('afterswitch');
-		};
+	      if (!isPopstate) {
+	        var title = !!newDocument.querySelector('title').innerHTML || _this2.url;
+	        var state = {
+	          url: _this2.url,
+	          scrollTop: document.body.scrollTop || document.documentElement.scrollTop
+	        };
+	        history.pushState(state, title, _this2.url);
+	      }
 
-		PjaxRouter.prototype.load = function load$$1(url, isPopstate) {
-			var _this2 = this;
+	      if (_this2.lastStartTime !== loadStartTime) return;
 
-			this.emit('beforeload');
+	      _this2.emit('load', progress);
 
-			var loadStartTime = Date.now();
+	      _this2.pageTransition(newDocument);
+	    }, function (progress) {
+	      _this2.emit('loading', progress);
+	    }, this.xhrTimeout);
+	  };
 
-			this.url = url;
-			// this.loading = true;
-			this.lastStartTime = loadStartTime;
+	  _proto.on = function on(type, listener, options) {
+	    if (!this._listeners[type]) {
+	      this._listeners[type] = [];
+	    }
 
-			load(this.url, function (htmlSrc, progress) {
+	    var handler = {
+	      callback: listener,
+	      once: options && options.once || false
+	    };
 
-				if (!htmlSrc) {
+	    var contains = this._listeners[type].some(function (handler) {
+	      return handler.listener === listener;
+	    });
 
-					// onerror or timeout
-					_this2.emit('error');
-					location.href = _this2.url;
-					return;
-				}
+	    if (!contains) {
+	      this._listeners[type].push(handler);
+	    }
+	  };
 
-				var parser = new DOMParser();
-				var newDocument = parser.parseFromString(htmlSrc, 'text/html');
+	  _proto.once = function once(type, listener) {
+	    this.on(type, listener, {
+	      once: true
+	    });
+	  };
 
-				if (!isPopstate) {
+	  _proto.off = function off(type, listener) {
+	    if (!this._listeners[type]) return;
 
-					var title = !!newDocument.querySelector('title').innerHTML || _this2.url;
-					var state = {
-						url: _this2.url,
-						scrollTop: document.body.scrollTop || document.documentElement.scrollTop
-					};
-					history.pushState(state, title, _this2.url);
-				}
+	    if (!listener) {
+	      delete this._listeners[type];
+	      return;
+	    }
 
-				if (_this2.lastStartTime !== loadStartTime) return;
+	    var listenerArray = this._listeners[type];
 
-				_this2.emit('load', progress);
-				_this2.pageTransition(newDocument);
-			}, function (progress) {
+	    for (var i = 0, l = listenerArray.length; i < l; i += 1) {
+	      if (listenerArray[i].callback === listener) {
+	        listenerArray.splice(i, 1);
+	        return;
+	      }
+	    }
+	  };
 
-				_this2.emit('loading', progress);
-			}, this.xhrTimeout);
-		};
+	  _proto.emit = function emit(type, argument) {
+	    var _this3 = this;
 
-		PjaxRouter.prototype.on = function on(type, listener, options) {
+	    var listenerArray = this._listeners[type];
+	    if (!listenerArray) return;
+	    this._listeners[type] = listenerArray.filter(function (el) {
+	      el.callback.call(_this3, argument);
+	      return !el.once;
+	    });
+	  };
 
-			if (!this._listeners[type]) {
-
-				this._listeners[type] = [];
-			}
-
-			var handler = {
-				callback: listener,
-				once: options && options.once || false
-			};
-			var contains = this._listeners[type].some(function (handler) {
-
-				return handler.listener === listener;
-			});
-
-			if (!contains) {
-
-				this._listeners[type].push(handler);
-			}
-		};
-
-		PjaxRouter.prototype.once = function once(type, listener) {
-
-			this.on(type, listener, { once: true });
-		};
-
-		PjaxRouter.prototype.off = function off(type, listener) {
-
-			if (!this._listeners[type]) return;
-
-			if (!listener) {
-
-				delete this._listeners[type];
-				return;
-			}
-
-			var listenerArray = this._listeners[type];
-
-			for (var i = 0, l = listenerArray.length; i < l; i += 1) {
-
-				if (listenerArray[i].callback === listener) {
-
-					listenerArray.splice(i, 1);
-					return;
-				}
-			}
-		};
-
-		PjaxRouter.prototype.emit = function emit(type, argument) {
-			var _this3 = this;
-
-			var listenerArray = this._listeners[type];
-
-			if (!listenerArray) return;
-
-			this._listeners[type] = listenerArray.filter(function (el) {
-
-				el.callback.call(_this3, argument);
-				return !el.once;
-			});
-		};
-
-		return PjaxRouter;
+	  return PjaxRouter;
 	}();
 
 	PjaxRouter.supported = window.history && window.history.pushState;
-
 	var origin = new RegExp(location.origin);
 
 	function onLinkClick(event) {
-
-		var delegateTarget = void 0;
-		var isMatched = this.triggers.some(function (selector) {
-
-			delegateTarget = closest(event.target, selector);
-			return !!delegateTarget;
-		});
-
-		var isIgnored = this.ignores.some(function (selector) {
-			return !!closest(event.target, selector);
-		});
-
-		if (!isMatched || isIgnored) return;
-
-		var isExternalLink = !origin.test(delegateTarget.href);
-
-		if (isExternalLink) return;
-
-		event.preventDefault();
-
-		if (this.url === delegateTarget.href) return;
-
-		this.load(delegateTarget.href);
+	  var delegateTarget;
+	  var isMatched = this.triggers.some(function (selector) {
+	    delegateTarget = closest(event.target, selector);
+	    return !!delegateTarget;
+	  });
+	  var isIgnored = this.ignores.some(function (selector) {
+	    return !!closest(event.target, selector);
+	  });
+	  if (!isMatched || isIgnored) return;
+	  var isExternalLink = !origin.test(delegateTarget.href);
+	  if (isExternalLink) return;
+	  event.preventDefault();
+	  if (this.url === delegateTarget.href) return;
+	  this.load(delegateTarget.href);
 	}
 
 	function onPopstate(event) {
-
-		if (!event.state) return;
-
-		this.load(event.state.url, true);
+	  if (!event.state) return;
+	  this.load(event.state.url, true);
 	}
 
 	return PjaxRouter;
