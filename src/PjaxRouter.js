@@ -35,7 +35,7 @@ class PjaxRouter {
 	pageTransition( newDocument ) {
 
 		// this.loading = false;
-		this.emit( 'beforeswitch', { nextUrl: url } );
+		this.emit( 'beforeswitch' );
 
 		this.selectors.forEach( ( selector ) => {
 
@@ -56,7 +56,7 @@ class PjaxRouter {
 
 	load( url, isPopstate ) {
 
-		this.emit( 'beforeload' );
+		this.emit( 'beforeload', { nextUrl: url } );
 
 		const loadStartTime = Date.now();
 

@@ -29,9 +29,9 @@ var router = new PjaxRouter( {
 	}
 } );
 
-router.on( 'beforeload',   function () { console.log( 'beforeload' );   } );
+router.on( 'beforeload',   function ( event )    { console.log( 'beforeload', event );} );
 router.on( 'loading',      function ( progress ) { console.log( 'loading', progress );} );
-router.on( 'load',         function ( progress ) { console.log( 'loaded', progress );} );
+router.on( 'load',         function ( progress ) { console.log( 'loaded',  progress );} );
 router.on( 'beforeswitch', function () { console.log( 'beforeswitch' ); } );
 router.on( 'afterswitch',  function () { console.log( 'afterswitch' );  } );
 router.on( 'error',        function () { console.log( 'error' );        } );

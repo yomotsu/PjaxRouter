@@ -99,9 +99,7 @@
 	    var _this = this;
 
 	    // this.loading = false;
-	    this.emit('beforeswitch', {
-	      nextUrl: url
-	    });
+	    this.emit('beforeswitch');
 	    this.selectors.forEach(function (selector) {
 	      var oldEl = document.querySelector(selector);
 	      var newEl = newDocument.querySelector(selector);
@@ -116,7 +114,9 @@
 	  _proto.load = function load$$1(url, isPopstate) {
 	    var _this2 = this;
 
-	    this.emit('beforeload');
+	    this.emit('beforeload', {
+	      nextUrl: url
+	    });
 	    var loadStartTime = Date.now();
 	    this.url = url; // this.loading = true;
 
