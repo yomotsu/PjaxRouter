@@ -35,7 +35,7 @@ class PjaxRouter {
 	pageTransition( newDocument ) {
 
 		// this.loading = false;
-		this.emit( 'beforeswitch' );
+		this.emit( 'beforeswitch', { nextUrl: url } );
 
 		this.selectors.forEach( ( selector ) => {
 

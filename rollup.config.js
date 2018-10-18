@@ -1,11 +1,11 @@
-import babel from 'rollup-plugin-babel'
+import babel from 'rollup-plugin-babel';
 
 const license = `/*!
  * PjaxRouter
  * https://github.com/yomotsu/PjaxRouter
  * (c) 2017 @yomotsu
  * Released under the MIT License.
- */`
+ */`;
 
 export default {
 	input: 'src/PjaxRouter.js',
@@ -28,7 +28,7 @@ export default {
 		babel( {
 			exclude: 'node_modules/**',
 			presets: [
-				[ 'env', {
+				[ '@babel/preset-env', {
 					targets: {
 						browsers: [
 							'last 2 versions',

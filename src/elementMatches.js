@@ -4,7 +4,6 @@ const matches =
 	Element.prototype.matchesSelector ||
 	Element.prototype.mozMatchesSelector ||
 	Element.prototype.msMatchesSelector ||
-	Element.prototype.oMatchesSelector ||
 	Element.prototype.webkitMatchesSelector;
 
 function elementMatches( el, selector ) {
