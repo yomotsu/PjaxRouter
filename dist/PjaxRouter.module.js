@@ -1,232 +1,203 @@
 /*!
- * PjaxRouter
+ * PjaxRouter v2.0.0
  * https://github.com/yomotsu/PjaxRouter
  * (c) 2017 @yomotsu
  * Released under the MIT License.
  */
-// const tmpDocument = document.createElement( 'html' );
-var xhr = new XMLHttpRequest();
-
-var load = function load(url, loadedCallback, loadingCallback, timeout) {
-  if (timeout === void 0) {
-    timeout = 5000;
-  }
-
-  var startTime = Date.now();
-  xhr.open('GET', url, true);
-  xhr.timeout = timeout;
-
-  xhr.onload = function (event) {
-    loadedCallback(xhr.responseText, {
-      loaded: event.loaded,
-      total: event.total,
-      elapsedTime: Date.now() - startTime
-    });
-  };
-
-  xhr.ontimeout = function () {
-    loadedCallback(null);
-  };
-
-  xhr.onerror = function () {
-    loadedCallback(null);
-  };
-
-  xhr.onprogress = function (event) {
-    loadingCallback({
-      loaded: event.loaded,
-      total: event.total,
-      elapsedTime: Date.now() - startTime
-    });
-  };
-
-  xhr.send(null);
-};
-
-// https://developer.mozilla.org/ja/docs/Web/API/Element/matches#Polyfill
-var matches = Element.prototype.matches || Element.prototype.matchesSelector || Element.prototype.mozMatchesSelector || Element.prototype.msMatchesSelector || Element.prototype.webkitMatchesSelector;
-
-function elementMatches(el, selector) {
-  return matches.call(el, selector);
-}
-
-var DOCUMENT_NODE_TYPE = 9;
-
-function closest(el, selector) {
-  while (el && el.nodeType !== DOCUMENT_NODE_TYPE) {
-    if (elementMatches(el, selector)) return el;
-    el = el.parentNode;
-  }
-}
-
-var PjaxRouter =
-/*#__PURE__*/
-function () {
-  function PjaxRouter(option) {
-    if (option === void 0) {
-      option = {};
-    }
-
-    if (!PjaxRouter.supported) return;
-    this.lastStartTime = -1; // this.loading = false;
-
-    this.url = location.href;
-    this.xhrTimeout = option.xhrTimeout || 5000;
-    this.triggers = option.triggers || [];
-    this.ignores = option.ignores || [];
-    this.selectors = option.selectors;
-    this.switches = option.switches;
-    this._listeners = {};
-    this._onLinkClick = onLinkClick.bind(this);
-    this._onPopstate = onPopstate.bind(this);
-    window.history.replaceState({
-      url: window.location.href,
-      scrollTop: document.body.scrollTop || document.documentElement.scrollTop
-    }, document.title);
-    document.body.addEventListener('click', this._onLinkClick);
-    window.addEventListener('popstate', this._onPopstate);
-  }
-
-  var _proto = PjaxRouter.prototype;
-
-  _proto.pageTransition = function pageTransition(newDocument) {
-    var _this = this;
-
-    // this.loading = false;
-    this.emit('beforeswitch');
-    this.selectors.forEach(function (selector) {
-      var oldEl = document.querySelector(selector);
-      var newEl = newDocument.querySelector(selector);
-
-      if (typeof _this.switches[selector] === 'function') {
-        _this.switches[selector].bind(_this)(newEl, oldEl);
-      }
-    });
-    this.emit('afterswitch');
-  };
-
-  _proto.load = function load$$1(url, isPopstate) {
-    var _this2 = this;
-
-    this.emit('beforeload', {
-      nextUrl: url
-    });
-    var loadStartTime = Date.now();
-    this.url = url; // this.loading = true;
-
-    this.lastStartTime = loadStartTime;
-
-    load(this.url, function (htmlSrc, progress) {
-      if (!htmlSrc) {
-        // onerror or timeout
-        _this2.emit('error');
-
-        location.href = _this2.url;
-        return;
-      }
-
-      var parser = new DOMParser();
-      var newDocument = parser.parseFromString(htmlSrc, 'text/html');
-
-      if (!isPopstate) {
-        var title = !!newDocument.querySelector('title').innerHTML || _this2.url;
-        var state = {
-          url: _this2.url,
-          scrollTop: document.body.scrollTop || document.documentElement.scrollTop
+async function load(url, progressCallback, timeout = 5000) {
+    var _a;
+    const startTime = Date.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        // Stream response for progress tracking
+        const reader = (_a = response.body) === null || _a === void 0 ? void 0 : _a.getReader();
+        const contentLength = parseInt(response.headers.get('Content-Length') || '0', 10);
+        if (!reader) {
+            // Fallback if streaming not available
+            const text = await response.text();
+            clearTimeout(timeoutId);
+            return {
+                text,
+                progress: {
+                    loaded: text.length,
+                    total: text.length,
+                    elapsedTime: Date.now() - startTime,
+                },
+            };
+        }
+        let receivedLength = 0;
+        const chunks = [];
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done)
+                break;
+            chunks.push(value);
+            receivedLength += value.length;
+            if (progressCallback) {
+                progressCallback({
+                    loaded: receivedLength,
+                    total: contentLength || receivedLength,
+                    elapsedTime: Date.now() - startTime,
+                });
+            }
+        }
+        clearTimeout(timeoutId);
+        // Concatenate chunks and decode
+        const blob = new Blob(chunks);
+        const text = await blob.text();
+        return {
+            text,
+            progress: {
+                loaded: receivedLength,
+                total: contentLength || receivedLength,
+                elapsedTime: Date.now() - startTime,
+            },
         };
-        history.pushState(state, title, _this2.url);
-      }
-
-      if (_this2.lastStartTime !== loadStartTime) return;
-
-      _this2.emit('load', progress);
-
-      _this2.pageTransition(newDocument);
-    }, function (progress) {
-      _this2.emit('loading', progress);
-    }, this.xhrTimeout);
-  };
-
-  _proto.on = function on(type, listener, options) {
-    if (!this._listeners[type]) {
-      this._listeners[type] = [];
     }
-
-    var handler = {
-      callback: listener,
-      once: options && options.once || false
-    };
-
-    var contains = this._listeners[type].some(function (handler) {
-      return handler.listener === listener;
-    });
-
-    if (!contains) {
-      this._listeners[type].push(handler);
+    catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error('Request timeout');
+        }
+        throw error;
     }
-  };
-
-  _proto.once = function once(type, listener) {
-    this.on(type, listener, {
-      once: true
-    });
-  };
-
-  _proto.off = function off(type, listener) {
-    if (!this._listeners[type]) return;
-
-    if (!listener) {
-      delete this._listeners[type];
-      return;
-    }
-
-    var listenerArray = this._listeners[type];
-
-    for (var i = 0, l = listenerArray.length; i < l; i += 1) {
-      if (listenerArray[i].callback === listener) {
-        listenerArray.splice(i, 1);
-        return;
-      }
-    }
-  };
-
-  _proto.emit = function emit(type, argument) {
-    var _this3 = this;
-
-    var listenerArray = this._listeners[type];
-    if (!listenerArray) return;
-    this._listeners[type] = listenerArray.filter(function (el) {
-      el.callback.call(_this3, argument);
-      return !el.once;
-    });
-  };
-
-  return PjaxRouter;
-}();
-
-PjaxRouter.supported = window.history && window.history.pushState;
-var origin = new RegExp(location.origin);
-
-function onLinkClick(event) {
-  var delegateTarget;
-  var isMatched = this.triggers.some(function (selector) {
-    delegateTarget = closest(event.target, selector);
-    return !!delegateTarget;
-  });
-  var isIgnored = this.ignores.some(function (selector) {
-    return !!closest(event.target, selector);
-  });
-  if (!isMatched || isIgnored) return;
-  var isExternalLink = !origin.test(delegateTarget.href);
-  if (isExternalLink) return;
-  event.preventDefault();
-  if (this.url === delegateTarget.href) return;
-  this.load(delegateTarget.href);
 }
 
-function onPopstate(event) {
-  if (!event.state) return;
-  this.load(event.state.url, true);
+class PjaxRouter {
+    constructor(options) {
+        this.lastStartTime = -1;
+        this._listeners = {};
+        if (!PjaxRouter.supported)
+            return;
+        this.url = location.href;
+        this.timeout = options.timeout || 5000;
+        this.triggers = options.triggers || [];
+        this.ignores = options.ignores || [];
+        this.selectors = options.selectors;
+        this.switches = options.switches;
+        this._onLinkClick = (event) => this.onLinkClick(event);
+        this._onPopstate = (event) => this.onPopstate(event);
+        window.history.replaceState({
+            url: window.location.href,
+            scrollTop: document.body.scrollTop || document.documentElement.scrollTop,
+        }, document.title);
+        document.body.addEventListener('click', this._onLinkClick);
+        window.addEventListener('popstate', this._onPopstate);
+    }
+    pageTransition(newDocument) {
+        this.emit('beforeswitch');
+        this.selectors.forEach((selector) => {
+            const oldEl = document.querySelector(selector);
+            const newEl = newDocument.querySelector(selector);
+            if (oldEl && newEl && typeof this.switches[selector] === 'function') {
+                this.switches[selector].call(this, newEl, oldEl);
+            }
+        });
+        this.emit('afterswitch');
+    }
+    async load(url, isPopstate = false) {
+        this.emit('beforeload', { nextUrl: url });
+        const loadStartTime = Date.now();
+        this.url = url;
+        this.lastStartTime = loadStartTime;
+        try {
+            const result = await load(this.url, (progress) => this.emit('loading', progress), this.timeout);
+            const parser = new DOMParser();
+            const newDocument = parser.parseFromString(result.text, 'text/html');
+            if (!isPopstate) {
+                const titleEl = newDocument.querySelector('title');
+                const title = titleEl ? titleEl.innerHTML : this.url;
+                const state = {
+                    url: this.url,
+                    scrollTop: document.body.scrollTop || document.documentElement.scrollTop,
+                };
+                history.pushState(state, title, this.url);
+            }
+            // Prevent race condition
+            if (this.lastStartTime !== loadStartTime)
+                return;
+            this.emit('load', result.progress);
+            this.pageTransition(newDocument);
+        }
+        catch (error) {
+            this.emit('error', error);
+            location.href = this.url; // Fallback to full page load
+        }
+    }
+    on(type, listener, options) {
+        if (!this._listeners[type]) {
+            this._listeners[type] = [];
+        }
+        const handler = {
+            callback: listener,
+            once: (options === null || options === void 0 ? void 0 : options.once) || false,
+        };
+        const contains = this._listeners[type].some((h) => h.callback === listener);
+        if (!contains) {
+            this._listeners[type].push(handler);
+        }
+    }
+    once(type, listener) {
+        this.on(type, listener, { once: true });
+    }
+    off(type, listener) {
+        if (!this._listeners[type])
+            return;
+        if (!listener) {
+            delete this._listeners[type];
+            return;
+        }
+        const listenerArray = this._listeners[type];
+        const index = listenerArray.findIndex((h) => h.callback === listener);
+        if (index !== -1)
+            listenerArray.splice(index, 1);
+    }
+    emit(type, argument) {
+        const listenerArray = this._listeners[type];
+        if (!listenerArray)
+            return;
+        this._listeners[type] = listenerArray.filter((el) => {
+            el.callback.call(this, argument);
+            return !el.once;
+        });
+    }
+    onLinkClick(event) {
+        const origin = new RegExp(location.origin);
+        let delegateTarget = null;
+        const isMatched = this.triggers.some((selector) => {
+            const target = event.target.closest(selector);
+            if (target) {
+                delegateTarget = target;
+                return true;
+            }
+            return false;
+        });
+        const isIgnored = this.ignores.some((selector) => !!event.target.closest(selector));
+        if (!isMatched || isIgnored || !delegateTarget)
+            return;
+        // TypeScript now knows delegateTarget is not null
+        const anchor = delegateTarget;
+        const isExternalLink = !origin.test(anchor.href);
+        if (isExternalLink)
+            return;
+        event.preventDefault();
+        if (this.url === anchor.href)
+            return;
+        this.load(anchor.href);
+    }
+    onPopstate(event) {
+        if (!event.state)
+            return;
+        const state = event.state;
+        this.load(state.url, true);
+    }
 }
+PjaxRouter.supported = !!(window.history && window.history.pushState);
 
-export default PjaxRouter;
+export { PjaxRouter as default };
+//# sourceMappingURL=PjaxRouter.module.js.map

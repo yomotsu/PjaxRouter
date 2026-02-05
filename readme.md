@@ -9,10 +9,6 @@ Pjax Router for static websites.
 
 - [basic](https://yomotsu.github.io/PjaxRouter/examples/index.html)
 
-## supported
-
-IE10+ and others.
-
 ## Usage
 
 Both standalone lib and NPM package are available.
