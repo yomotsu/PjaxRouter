@@ -185,9 +185,10 @@ class PjaxRouter {
         const isExternalLink = !origin.test(anchor.href);
         if (isExternalLink)
             return;
-        event.preventDefault();
-        if (this.url === anchor.href)
+        // Ignore navigation if it's the same page (excluding hash)
+        if (this.url.replace(/#.*$/, '') === anchor.href.replace(/#.*$/, ''))
             return;
+        event.preventDefault();
         this.load(anchor.href);
     }
     onPopstate(event) {
