@@ -232,7 +232,8 @@ export default class PjaxRouter {
 
 		event.preventDefault();
 
-		if ( this.url === anchor.href ) return;
+		// Ignore navigation if it's the same page (excluding hash)
+		if ( this.url.replace( /#.*$/, '' ) === anchor.href.replace( /#.*$/, '' ) ) return;
 
 		this.load( anchor.href );
 
