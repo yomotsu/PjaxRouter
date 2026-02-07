@@ -229,7 +229,8 @@
 	        if (isExternalLink)
 	            return;
 	        // Ignore navigation if it's the same page (excluding hash)
-	        if (this.url.replace(/#.*$/, '') === anchor.href.replace(/#.*$/, ''))
+	        if (anchor.href.includes('#') &&
+	            this.url.replace(/#.*$/, '') === anchor.href.replace(/#.*$/, ''))
 	            return;
 	        event.preventDefault();
 	        this.load(anchor.href);
