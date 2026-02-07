@@ -10,7 +10,7 @@ export interface LoadResult {
 type ProgressCallback = (progress: LoadProgress) => void;
 export interface LoadOptions {
     method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
-    body?: FormData | URLSearchParams | string;
+    body?: FormData | URLSearchParams | string | Blob;
     headers?: Record<string, string>;
 }
 export declare function load(url: string, progressCallback?: ProgressCallback, timeout?: number, options?: LoadOptions): Promise<LoadResult>;

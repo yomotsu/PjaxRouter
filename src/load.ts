@@ -17,7 +17,7 @@ type ProgressCallback = ( progress: LoadProgress ) => void;
 
 export interface LoadOptions {
 	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
-	body?: FormData | URLSearchParams | string;
+	body?: FormData | URLSearchParams | string | Blob;
 	headers?: Record<string, string>;
 }
 
@@ -106,7 +106,10 @@ export async function load(
 		clearTimeout( timeoutId );
 
 		// Concatenate chunks and decode
-		const blob = new Blob( chunks as BlobPart[] );
+		// Note: Uint8Array is a valid BlobPart at runtime, but TypeScript's lib types
+		// may be overly strict about ArrayBufferLike vs ArrayBuffer distinction
+		// @ts-expect-error - Uint8Array[] is compatible with BlobPart[] at runtime
+		const blob = new Blob( chunks );
 		const text = await blob.text();
 
 		return {

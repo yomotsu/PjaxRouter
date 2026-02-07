@@ -58,6 +58,9 @@ async function load(url, progressCallback, timeout = 5000, options = {}) {
         }
         clearTimeout(timeoutId);
         // Concatenate chunks and decode
+        // Note: Uint8Array is a valid BlobPart at runtime, but TypeScript's lib types
+        // may be overly strict about ArrayBufferLike vs ArrayBuffer distinction
+        // @ts-expect-error - Uint8Array[] is compatible with BlobPart[] at runtime
         const blob = new Blob(chunks);
         const text = await blob.text();
         return {
@@ -85,8 +88,13 @@ function isHistoryState(state) {
         typeof state.scrollTop === 'number');
 }
 function isValidMethod(method) {
-    const validMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
-    return validMethods.includes(method);
+    return (method === 'GET' ||
+        method === 'POST' ||
+        method === 'PUT' ||
+        method === 'PATCH' ||
+        method === 'DELETE' ||
+        method === 'HEAD' ||
+        method === 'OPTIONS');
 }
 class PjaxRouter {
     constructor(options) {
@@ -194,11 +202,10 @@ class PjaxRouter {
         if (!(event.target instanceof Element))
             return;
         const origin = new RegExp(location.origin);
+        const eventTarget = event.target;
         let delegateTarget = null;
         const isMatched = this.triggers.some((selector) => {
-            const target = event.target instanceof Element
-                ? event.target.closest(selector)
-                : null;
+            const target = eventTarget.closest(selector);
             if (target) {
                 delegateTarget = target;
                 return true;
@@ -206,30 +213,29 @@ class PjaxRouter {
             return false;
         });
         const isIgnored = this.ignores.some((selector) => {
-            return event.target instanceof Element
-                ? !!event.target.closest(selector)
-                : false;
+            return !!eventTarget.closest(selector);
         });
         if (!isMatched || isIgnored || !delegateTarget)
             return;
-        const isExternalLink = !origin.test(delegateTarget.href);
+        // TypeScript type narrowing: delegateTarget is now HTMLAnchorElement
+        const anchor = delegateTarget;
+        const isExternalLink = !origin.test(anchor.href);
         if (isExternalLink)
             return;
         // Ignore navigation if it's the same page (excluding hash)
-        if (this.url.replace(/#.*$/, '') === delegateTarget.href.replace(/#.*$/, ''))
+        if (this.url.replace(/#.*$/, '') === anchor.href.replace(/#.*$/, ''))
             return;
         event.preventDefault();
-        this.load(delegateTarget.href);
+        this.load(anchor.href);
     }
     onFormSubmit(event) {
         if (!(event.target instanceof Element))
             return;
         const origin = new RegExp(location.origin);
+        const eventTarget = event.target;
         let delegateTarget = null;
         const isMatched = this.formTriggers.some((selector) => {
-            const target = event.target instanceof Element
-                ? event.target.closest(selector)
-                : null;
+            const target = eventTarget.closest(selector);
             if (target) {
                 delegateTarget = target;
                 return true;
@@ -237,28 +243,28 @@ class PjaxRouter {
             return false;
         });
         const isIgnored = this.ignores.some((selector) => {
-            return event.target instanceof Element
-                ? !!event.target.closest(selector)
-                : false;
+            return !!eventTarget.closest(selector);
         });
         if (!isMatched || isIgnored || !delegateTarget)
             return;
-        const methodString = (delegateTarget.method || 'GET').toUpperCase();
+        // TypeScript type narrowing: delegateTarget is now HTMLFormElement
+        const form = delegateTarget;
+        const methodString = (form.method || 'GET').toUpperCase();
         const method = isValidMethod(methodString) ? methodString : 'GET';
         const action = form.action || location.href;
         const isExternalLink = !origin.test(action);
         if (isExternalLink)
             return;
         event.preventDefault();
-        const formData = new FormData(delegateTarget);
+        const formData = new FormData(form);
         // GET and HEAD methods send parameters in URL, others in body
         if (method === 'GET' || method === 'HEAD') {
             const params = new URLSearchParams();
-            for (const [key, value] of formData.entries()) {
+            formData.forEach((value, key) => {
                 if (typeof value === 'string') {
                     params.append(key, value);
                 }
-            }
+            });
             const url = action.split('?')[0] + '?' + params.toString();
             this.load(url, false, { method });
         }
