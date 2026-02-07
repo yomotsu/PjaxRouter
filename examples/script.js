@@ -1,5 +1,6 @@
 var router = new PjaxRouter( {
 	triggers: [ 'a' ],
+	formTriggers: [ 'form[data-pjax-form]' ],
 	ignores: [ 'a.ignore' ],
 	selectors: [ 'title', '.sandbox1', '.sandbox2' ],
 	switches: {

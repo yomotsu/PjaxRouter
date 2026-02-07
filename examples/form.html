@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>demo index</title>
+</head>
+<body>
+<p><a href="https://github.com/yomotsu/PjaxRouter">GitHub repo</a></p>
+
+<a href="index.html">index</a>
+<a href="2.html">2.html</a>
+<a href="external.html" class="ignore">external (ignored link)</a>
+
+<div class="sandbox1">
+	sandbox1
+  <!-- Note: POST forms require a server that handles POST requests.
+       For static file servers, use GET method for testing. -->
+  <form method="get" action="./index.html" data-pjax-form>
+    <input type="text" value="form test" name="text" />
+    <button type="submit">Submit (GET for testing)</button>
+  </form>
+  
+  <p style="font-size: 12px; color: #666; margin-top: 10px;">
+    ℹ️ POST forms work in production with a proper backend server.
+    Static file servers (like Python http.server) only support GET.
+  </p>
+</div>
+
+<div class="sandbox2">
+	sandbox2 form.html
+</div>
+
+<h2>Example code</h2>
+<pre>var router = new PjaxRouter( {
+	triggers: [ 'a' ],
+  formTriggers: [ 'form[data-pjax]' ],
+	ignores: [ 'a.ignore' ],
+	selectors: [ 'title', '.sandbox1', '.sandbox2' ],
+	switches: {
+		'title': function ( newEl, oldEl ) {
+
+			document.title.innerHTML = newEl.innerHTML;
+
+		},
+		'.sandbox1': function ( newEl, oldEl ) {
+
+			document.querySelector('.sandbox1').innerHTML = newEl.innerHTML;
+
+		},
+		'.sandbox2': function ( newEl, oldEl ) {
+
+			document.querySelector('.sandbox2').innerHTML = newEl.innerHTML;
+
+		}
+	}
+} );</pre>
+
+<script src="../dist/PjaxRouter.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

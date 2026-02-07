@@ -15,10 +15,17 @@ export interface LoadResult {
 
 type ProgressCallback = ( progress: LoadProgress ) => void;
 
+export interface LoadOptions {
+	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
+	body?: FormData | URLSearchParams | string;
+	headers?: Record<string, string>;
+}
+
 export async function load(
 	url: string,
 	progressCallback?: ProgressCallback,
 	timeout: number = 5000,
+	options: LoadOptions = {},
 ): Promise<LoadResult> {
 
 	const startTime = Date.now();
@@ -27,7 +34,24 @@ export async function load(
 
 	try {
 
-		const response = await fetch( url, { signal: controller.signal } );
+		const fetchOptions: RequestInit = {
+			method: options.method || 'GET',
+			signal: controller.signal,
+		};
+
+		if ( options.body ) {
+
+			fetchOptions.body = options.body;
+
+		}
+
+		if ( options.headers ) {
+
+			fetchOptions.headers = options.headers;
+
+		}
+
+		const response = await fetch( url, fetchOptions );
 
 		if ( ! response.ok ) {
 

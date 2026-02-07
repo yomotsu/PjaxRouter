@@ -1,31 +1,40 @@
-import load, { LoadProgress } from './load';
+import load, { LoadProgress, LoadOptions } from './load';
 
 export interface PjaxRouterOptions {
-
 	timeout?: number;
 	triggers?: string[];
+	formTriggers?: string[];
 	ignores?: string[];
 	selectors: string[];
 	switches: {
 		[ selector: string ]: ( newEl: Element, oldEl: Element ) => void;
 	};
-
 }
 
 interface EventListener {
-
 	callback: EventCallback;
 	once: boolean;
-
 }
 
 type EventCallback = ( arg?: any ) => void;
 
 interface HistoryState {
-
 	url: string;
 	scrollTop: number;
+}
 
+function isHistoryState( state: any ): state is HistoryState {
+	return (
+		state &&
+		typeof state === 'object' &&
+		typeof state.url === 'string' &&
+		typeof state.scrollTop === 'number'
+	);
+}
+
+function isValidMethod( method: string ): method is LoadOptions['method'] {
+	const validMethods = [ 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS' ];
+	return validMethods.includes( method );
 }
 
 export default class PjaxRouter {
@@ -36,11 +45,13 @@ export default class PjaxRouter {
 	private url!: string;
 	private timeout!: number;
 	private triggers!: string[];
+	private formTriggers!: string[];
 	private ignores!: string[];
 	private selectors!: string[];
 	private switches!: { [ selector: string ]: ( newEl: Element, oldEl: Element ) => void };
 	private _listeners: { [ type: string ]: EventListener[] } = {};
 	private _onLinkClick!: ( event: MouseEvent ) => void;
+	private _onFormSubmit!: ( event: Event ) => void;
 	private _onPopstate!: ( event: PopStateEvent ) => void;
 
 	constructor( options: PjaxRouterOptions ) {
@@ -50,22 +61,23 @@ export default class PjaxRouter {
 		this.url = location.href;
 		this.timeout = options.timeout || 5000;
 		this.triggers = options.triggers || [];
+		this.formTriggers = options.formTriggers || [];
 		this.ignores = options.ignores || [];
 		this.selectors = options.selectors;
 		this.switches = options.switches;
 
 		this._onLinkClick = ( event: MouseEvent ) => this.onLinkClick( event );
+		this._onFormSubmit = ( event: Event ) => this.onFormSubmit( event );
 		this._onPopstate = ( event: PopStateEvent ) => this.onPopstate( event );
 
-		window.history.replaceState(
-			{
-				url: window.location.href,
-				scrollTop: document.body.scrollTop || document.documentElement.scrollTop,
-			} as HistoryState,
-			document.title,
-		);
+		const initialState: HistoryState = {
+			url: window.location.href,
+			scrollTop: document.body.scrollTop || document.documentElement.scrollTop,
+		};
+		window.history.replaceState( initialState, document.title );
 
 		document.body.addEventListener( 'click', this._onLinkClick );
+		document.addEventListener( 'submit', this._onFormSubmit, true );
 		window.addEventListener( 'popstate', this._onPopstate );
 
 	}
@@ -91,7 +103,7 @@ export default class PjaxRouter {
 
 	}
 
-	async load( url: string, isPopstate: boolean = false ): Promise<void> {
+	async load( url: string, isPopstate: boolean = false, loadOptions: LoadOptions = {} ): Promise<void> {
 
 		this.emit( 'beforeload', { nextUrl: url } );
 
@@ -105,6 +117,7 @@ export default class PjaxRouter {
 				this.url,
 				( progress: LoadProgress ) => this.emit( 'loading', progress ),
 				this.timeout,
+				loadOptions,
 			);
 
 			const parser = new DOMParser();
@@ -201,12 +214,17 @@ export default class PjaxRouter {
 
 	private onLinkClick( event: MouseEvent ): void {
 
+		if ( ! ( event.target instanceof Element ) ) return;
+
 		const origin = new RegExp( location.origin );
 		let delegateTarget: HTMLAnchorElement | null = null;
 
 		const isMatched = this.triggers.some( ( selector ) => {
 
-			const target = ( event.target as Element ).closest<HTMLAnchorElement>( selector );
+			const target = event.target instanceof Element
+				? event.target.closest<HTMLAnchorElement>( selector )
+				: null;
+
 			if ( target ) {
 
 				delegateTarget = target;
@@ -218,33 +236,104 @@ export default class PjaxRouter {
 
 		} );
 
-		const isIgnored = this.ignores.some( ( selector ) =>
-			!! ( event.target as Element ).closest( selector )
-		);
+		const isIgnored = this.ignores.some( ( selector ) => {
+
+			return event.target instanceof Element
+				? !! event.target.closest( selector )
+				: false;
+
+		} );
 
 		if ( ! isMatched || isIgnored || ! delegateTarget ) return;
 
-		// TypeScript now knows delegateTarget is not null
-		const anchor = delegateTarget as HTMLAnchorElement;
-		const isExternalLink = ! origin.test( anchor.href );
+		const isExternalLink = ! origin.test( delegateTarget.href );
 
 		if ( isExternalLink ) return;
 
 		// Ignore navigation if it's the same page (excluding hash)
-		if ( this.url.replace( /#.*$/, '' ) === anchor.href.replace( /#.*$/, '' ) ) return;
+		if ( this.url.replace( /#.*$/, '' ) === delegateTarget.href.replace( /#.*$/, '' ) ) return;
 
 		event.preventDefault();
 
-		this.load( anchor.href );
+		this.load( delegateTarget.href );
+
+	}
+
+	private onFormSubmit( event: Event ): void {
+
+		if ( ! ( event.target instanceof Element ) ) return;
+
+		const origin = new RegExp( location.origin );
+		let delegateTarget: HTMLFormElement | null = null;
+
+		const isMatched = this.formTriggers.some( ( selector ) => {
+
+			const target = event.target instanceof Element
+				? event.target.closest<HTMLFormElement>( selector )
+				: null;
+
+			if ( target ) {
+
+				delegateTarget = target;
+				return true;
+
+			}
+
+			return false;
+
+		} );
+
+		const isIgnored = this.ignores.some( ( selector ) => {
+
+			return event.target instanceof Element
+				? !! event.target.closest( selector )
+				: false;
+
+		} );
+
+		if ( ! isMatched || isIgnored || ! delegateTarget ) return;
+
+		const methodString = ( delegateTarget.method || 'GET' ).toUpperCase();
+		const method: LoadOptions['method'] = isValidMethod( methodString ) ? methodString : 'GET';
+		const action = form.action || location.href;
+		const isExternalLink = ! origin.test( action );
+
+		if ( isExternalLink ) return;
+
+		event.preventDefault();
+
+		const formData = new FormData( delegateTarget );
+
+		// GET and HEAD methods send parameters in URL, others in body
+		if ( method === 'GET' || method === 'HEAD' ) {
+
+			const params = new URLSearchParams();
+			for ( const [ key, value ] of formData.entries() ) {
+
+				if ( typeof value === 'string' ) {
+
+					params.append( key, value );
+
+				}
+
+			}
+			const url = action.split( '?' )[ 0 ] + '?' + params.toString();
+			this.load( url, false, { method } );
+
+		} else {
+
+			// POST, PUT, PATCH, DELETE, OPTIONS send data in body
+			this.load( action, false, { method, body: formData } );
+
+		}
 
 	}
 
 	private onPopstate( event: PopStateEvent ): void {
 
-		if ( ! event.state ) return;
+		if ( ! isHistoryState( event.state ) ) return;
 
-		const state = event.state as HistoryState;
-		this.load( state.url, true );
+		this.load( event.state.url, true );
 
 	}
 

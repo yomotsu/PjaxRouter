@@ -4,13 +4,23 @@
  * (c) 2017 @yomotsu
  * Released under the MIT License.
  */
-async function load(url, progressCallback, timeout = 5000) {
+async function load(url, progressCallback, timeout = 5000, options = {}) {
     var _a;
     const startTime = Date.now();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
     try {
-        const response = await fetch(url, { signal: controller.signal });
+        const fetchOptions = {
+            method: options.method || 'GET',
+            signal: controller.signal,
+        };
+        if (options.body) {
+            fetchOptions.body = options.body;
+        }
+        if (options.headers) {
+            fetchOptions.headers = options.headers;
+        }
+        const response = await fetch(url, fetchOptions);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -68,6 +78,16 @@ async function load(url, progressCallback, timeout = 5000) {
     }
 }
 
+function isHistoryState(state) {
+    return (state &&
+        typeof state === 'object' &&
+        typeof state.url === 'string' &&
+        typeof state.scrollTop === 'number');
+}
+function isValidMethod(method) {
+    const validMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+    return validMethods.includes(method);
+}
 class PjaxRouter {
     constructor(options) {
         this.lastStartTime = -1;
@@ -77,16 +97,20 @@ class PjaxRouter {
         this.url = location.href;
         this.timeout = options.timeout || 5000;
         this.triggers = options.triggers || [];
+        this.formTriggers = options.formTriggers || [];
         this.ignores = options.ignores || [];
         this.selectors = options.selectors;
         this.switches = options.switches;
         this._onLinkClick = (event) => this.onLinkClick(event);
+        this._onFormSubmit = (event) => this.onFormSubmit(event);
         this._onPopstate = (event) => this.onPopstate(event);
-        window.history.replaceState({
+        const initialState = {
             url: window.location.href,
             scrollTop: document.body.scrollTop || document.documentElement.scrollTop,
-        }, document.title);
+        };
+        window.history.replaceState(initialState, document.title);
         document.body.addEventListener('click', this._onLinkClick);
+        document.addEventListener('submit', this._onFormSubmit, true);
         window.addEventListener('popstate', this._onPopstate);
     }
     pageTransition(newDocument) {
@@ -100,13 +124,13 @@ class PjaxRouter {
         });
         this.emit('afterswitch');
     }
-    async load(url, isPopstate = false) {
+    async load(url, isPopstate = false, loadOptions = {}) {
         this.emit('beforeload', { nextUrl: url });
         const loadStartTime = Date.now();
         this.url = url;
         this.lastStartTime = loadStartTime;
         try {
-            const result = await load(this.url, (progress) => this.emit('loading', progress), this.timeout);
+            const result = await load(this.url, (progress) => this.emit('loading', progress), this.timeout, loadOptions);
             const parser = new DOMParser();
             const newDocument = parser.parseFromString(result.text, 'text/html');
             if (!isPopstate) {
@@ -167,35 +191,86 @@ class PjaxRouter {
         });
     }
     onLinkClick(event) {
+        if (!(event.target instanceof Element))
+            return;
         const origin = new RegExp(location.origin);
         let delegateTarget = null;
         const isMatched = this.triggers.some((selector) => {
-            const target = event.target.closest(selector);
+            const target = event.target instanceof Element
+                ? event.target.closest(selector)
+                : null;
             if (target) {
                 delegateTarget = target;
                 return true;
             }
             return false;
         });
-        const isIgnored = this.ignores.some((selector) => !!event.target.closest(selector));
+        const isIgnored = this.ignores.some((selector) => {
+            return event.target instanceof Element
+                ? !!event.target.closest(selector)
+                : false;
+        });
         if (!isMatched || isIgnored || !delegateTarget)
             return;
-        // TypeScript now knows delegateTarget is not null
-        const anchor = delegateTarget;
-        const isExternalLink = !origin.test(anchor.href);
+        const isExternalLink = !origin.test(delegateTarget.href);
         if (isExternalLink)
             return;
         // Ignore navigation if it's the same page (excluding hash)
-        if (this.url.replace(/#.*$/, '') === anchor.href.replace(/#.*$/, ''))
+        if (this.url.replace(/#.*$/, '') === delegateTarget.href.replace(/#.*$/, ''))
             return;
         event.preventDefault();
-        this.load(anchor.href);
+        this.load(delegateTarget.href);
+    }
+    onFormSubmit(event) {
+        if (!(event.target instanceof Element))
+            return;
+        const origin = new RegExp(location.origin);
+        let delegateTarget = null;
+        const isMatched = this.formTriggers.some((selector) => {
+            const target = event.target instanceof Element
+                ? event.target.closest(selector)
+                : null;
+            if (target) {
+                delegateTarget = target;
+                return true;
+            }
+            return false;
+        });
+        const isIgnored = this.ignores.some((selector) => {
+            return event.target instanceof Element
+                ? !!event.target.closest(selector)
+                : false;
+        });
+        if (!isMatched || isIgnored || !delegateTarget)
+            return;
+        const methodString = (delegateTarget.method || 'GET').toUpperCase();
+        const method = isValidMethod(methodString) ? methodString : 'GET';
+        const action = form.action || location.href;
+        const isExternalLink = !origin.test(action);
+        if (isExternalLink)
+            return;
+        event.preventDefault();
+        const formData = new FormData(delegateTarget);
+        // GET and HEAD methods send parameters in URL, others in body
+        if (method === 'GET' || method === 'HEAD') {
+            const params = new URLSearchParams();
+            for (const [key, value] of formData.entries()) {
+                if (typeof value === 'string') {
+                    params.append(key, value);
+                }
+            }
+            const url = action.split('?')[0] + '?' + params.toString();
+            this.load(url, false, { method });
+        }
+        else {
+            // POST, PUT, PATCH, DELETE, OPTIONS send data in body
+            this.load(action, false, { method, body: formData });
+        }
     }
     onPopstate(event) {
-        if (!event.state)
+        if (!isHistoryState(event.state))
             return;
-        const state = event.state;
-        this.load(state.url, true);
+        this.load(event.state.url, true);
     }
 }
 PjaxRouter.supported = !!(window.history && window.history.pushState);
